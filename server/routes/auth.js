@@ -1,0 +1,43 @@
+const express = require('express');
+const router = express.Router();
+const passport = require('passport');
+const jwt = require('jsonwebtoken');
+const { login, getMe, logout } = require('../controllers/authController');
+const auth = require('../middleware/auth');
+
+// @route   POST /api/auth/login
+// @desc    Login with email & password
+router.post('/login', login);
+
+// @route   GET /api/auth/google
+// @desc    Google OAuth
+router.get(
+  '/google',
+  passport.authenticate('google', { scope: ['profile', 'email'] })
+);
+
+// @route   GET /api/auth/google/callback
+// @desc    Google OAuth callback
+router.get(
+  '/google/callback',
+  passport.authenticate('google', { session: false }),
+  (req, res) => {
+    const token = jwt.sign(
+      { id: req.user._id },
+      process.env.JWT_SECRET,
+      { expiresIn: process.env.JWT_EXPIRE }
+    );
+    
+    res.redirect(`${process.env.CLIENT_URL}/auth/success?token=${token}`);
+  }
+);
+
+// @route   GET /api/auth/me
+// @desc    Get current user
+router.get('/me', auth, getMe);
+
+// @route   POST /api/auth/logout
+// @desc    Logout user
+router.post('/logout', auth, logout);
+
+module.exports = router;
