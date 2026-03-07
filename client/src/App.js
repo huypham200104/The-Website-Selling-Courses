@@ -2,15 +2,20 @@ import React from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import Login from './pages/Login';
+import AuthSuccess from './pages/AuthSuccess';
 import Dashboard from './pages/Dashboard';
 import InstructorDashboard from './pages/InstructorDashboard';
 import StudentDashboard from './pages/StudentDashboard';
 import Courses from './pages/Courses';
+import CourseDetail from './pages/CourseDetail';
 import Orders from './pages/Orders';
 import Users from './pages/Users';
 import InstructorCourses from './pages/InstructorCourses';
 import CreateCourse from './pages/CreateCourse';
 import InstructorStudents from './pages/InstructorStudents';
+import Settings from './pages/Settings';
+import Profile from './pages/Profile';
+import EditCourse from './pages/EditCourse';
 import PrivateRoute from './components/PrivateRoute';
 import './App.css';
 
@@ -24,6 +29,7 @@ function AppRoutes() {
   return (
     <Routes>
       <Route path="/login" element={<Login />} />
+      <Route path="/auth/success" element={<AuthSuccess />} />
       
       {/* Admin Routes */}
       <Route
@@ -43,6 +49,22 @@ function AppRoutes() {
         }
       />
       <Route
+        path="/courses/:id"
+        element={
+          <PrivateRoute allowedRoles={['admin']}>
+            <CourseDetail />
+          </PrivateRoute>
+        }
+      />
+      <Route
+        path="/courses/:id/edit"
+        element={
+          <PrivateRoute allowedRoles={['admin']}>
+            <EditCourse />
+          </PrivateRoute>
+        }
+      />
+      <Route
         path="/users"
         element={
           <PrivateRoute allowedRoles={['admin']}>
@@ -55,6 +77,22 @@ function AppRoutes() {
         element={
           <PrivateRoute allowedRoles={['admin']}>
             <Orders />
+          </PrivateRoute>
+        }
+      />
+      <Route
+        path="/settings"
+        element={
+          <PrivateRoute allowedRoles={['admin']}>
+            <Settings />
+          </PrivateRoute>
+        }
+      />
+      <Route
+        path="/profile"
+        element={
+          <PrivateRoute allowedRoles={['admin', 'instructor', 'student']}>
+            <Profile />
           </PrivateRoute>
         }
       />
@@ -77,9 +115,17 @@ function AppRoutes() {
         }
       />
       <Route
-        path="/instructor/create-course"
+        path="/instructor/courses/:id/edit"
         element={
           <PrivateRoute allowedRoles={['instructor']}>
+            <EditCourse />
+          </PrivateRoute>
+        }
+      />
+      <Route
+        path="/instructor/create-course"
+        element={
+          <PrivateRoute allowedRoles={['instructor', 'admin']}>
             <CreateCourse />
           </PrivateRoute>
         }

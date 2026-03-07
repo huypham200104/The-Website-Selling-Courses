@@ -6,14 +6,38 @@ const User = require('../models/User');
 // @access  Public
 exports.getCourses = async (req, res, next) => {
   try {
-    const courses = await Course.find()
-      .populate('instructor', 'name avatar')
-      .populate('videos', 'title duration')
-      .sort({ createdAt: -1 });
-    
+    const page = parseInt(req.query.page) || 1;
+    const limit = parseInt(req.query.limit) || 100;
+    const skip = (page - 1) * limit;
+    const search = (req.query.search || '').trim();
+
+    let query = {};
+    if (search) {
+      query = {
+        $or: [
+          { title: { $regex: search, $options: 'i' } },
+          { description: { $regex: search, $options: 'i' } },
+          { category: { $regex: search, $options: 'i' } }
+        ]
+      };
+    }
+
+    const [courses, total] = await Promise.all([
+      Course.find(query)
+        .populate('instructor', 'name avatar')
+        .populate('videos', 'title duration')
+        .sort({ createdAt: -1 })
+        .skip(skip)
+        .limit(limit),
+      Course.countDocuments(query)
+    ]);
+
     res.json({
       success: true,
       count: courses.length,
+      total,
+      page,
+      totalPages: Math.ceil(total / limit),
       data: courses
     });
   } catch (error) {
@@ -29,7 +53,7 @@ exports.getCourse = async (req, res, next) => {
     const course = await Course.findById(req.params.id)
       .populate('instructor', 'name avatar email')
       .populate('videos', 'title description duration order thumbnail');
-    
+
     if (!course) {
       return res.status(404).json({
         success: false,
@@ -51,15 +75,17 @@ exports.getCourse = async (req, res, next) => {
 // @access  Private (Instructor/Admin)
 exports.createCourse = async (req, res, next) => {
   try {
-    const { title, description, price, category, level } = req.body;
+    const { title, description, price, category, level, instructor: instructorId } = req.body;
+
+    const instructor = (req.user.role === 'admin' && instructorId) ? instructorId : req.user._id;
 
     const course = await Course.create({
       title,
       description,
       price,
       category,
-      level,
-      instructor: req.user._id
+      level: level || 'beginner',
+      instructor
     });
 
     res.status(201).json({
@@ -85,7 +111,7 @@ exports.updateCourse = async (req, res, next) => {
       });
     }
 
-    // Check ownership
+    // Check ownership or admin
     if (course.instructor.toString() !== req.user._id.toString() && req.user.role !== 'admin') {
       return res.status(403).json({
         success: false,
@@ -93,7 +119,12 @@ exports.updateCourse = async (req, res, next) => {
       });
     }
 
-    course = await Course.findByIdAndUpdate(req.params.id, req.body, {
+    const { instructor: instructorId, thumbnail, ...rest } = req.body;
+    const updateData = { ...rest };
+    if (req.user.role === 'admin' && instructorId) updateData.instructor = instructorId;
+    if (thumbnail !== undefined) updateData.thumbnail = thumbnail;
+
+    course = await Course.findByIdAndUpdate(req.params.id, updateData, {
       new: true,
       runValidators: true
     });
@@ -174,6 +205,33 @@ exports.enrollCourse = async (req, res, next) => {
     res.json({
       success: true,
       message: 'Successfully enrolled in course'
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// @desc    Upload course thumbnail
+// @route   PUT /api/courses/:id/thumbnail
+// @access  Private (Instructor/Admin)
+exports.uploadThumbnail = async (req, res, next) => {
+  try {
+    const course = await Course.findById(req.params.id);
+    if (!course) {
+      return res.status(404).json({ success: false, error: 'Course not found' });
+    }
+    if (course.instructor.toString() !== req.user._id.toString() && req.user.role !== 'admin') {
+      return res.status(403).json({ success: false, error: 'Not authorized' });
+    }
+    if (!req.file || !req.file.filename) {
+      return res.status(400).json({ success: false, error: 'No file uploaded' });
+    }
+    const thumbnailUrl = `/uploads/thumbnails/${req.file.filename}`;
+    course.thumbnail = thumbnailUrl;
+    await course.save();
+    res.json({
+      success: true,
+      data: { thumbnail: course.thumbnail }
     });
   } catch (error) {
     next(error);

@@ -2,7 +2,7 @@ const jwt = require('jsonwebtoken');
 const bcrypt = require('bcryptjs');
 const User = require('../models/User');
 
-// @desc    Login with email and password
+// @desc    Login with email and password with email and password
 // @route   POST /api/auth/login
 // @access  Public
 exports.login = async (req, res, next) => {
@@ -100,4 +100,46 @@ exports.logout = (req, res) => {
     success: true,
     message: 'Logged out successfully' 
   });
+};
+
+// @desc    Change password
+// @route   PUT /api/auth/change-password
+// @access  Private
+exports.changePassword = async (req, res, next) => {
+  try {
+    const { currentPassword, newPassword } = req.body;
+    if (!currentPassword || !newPassword) {
+      return res.status(400).json({
+        success: false,
+        message: 'Vui lòng nhập mật khẩu hiện tại và mật khẩu mới'
+      });
+    }
+
+    const user = await User.findById(req.user._id).select('+password');
+    if (!user || !user.password) {
+      return res.status(400).json({
+        success: false,
+        message: 'Tài khoản không hỗ trợ đổi mật khẩu (ví dụ: đăng nhập Google)'
+      });
+    }
+
+    const isMatch = await bcrypt.compare(currentPassword, user.password);
+    if (!isMatch) {
+      return res.status(401).json({
+        success: false,
+        message: 'Mật khẩu hiện tại không đúng'
+      });
+    }
+
+    const salt = await bcrypt.genSalt(10);
+    user.password = await bcrypt.hash(newPassword, salt);
+    await user.save();
+
+    res.json({
+      success: true,
+      message: 'Đổi mật khẩu thành công'
+    });
+  } catch (error) {
+    next(error);
+  }
 };

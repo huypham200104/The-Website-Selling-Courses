@@ -22,8 +22,8 @@ export const authService = {
 
 // Course Services
 export const courseService = {
-  getAll: async () => {
-    const response = await api.get('/courses');
+  getAll: async (params = {}) => {
+    const response = await api.get('/courses', { params });
     return response.data;
   },
 
@@ -51,13 +51,34 @@ export const courseService = {
     const response = await api.post(`/courses/${courseId}/enroll`);
     return response.data;
   },
+
+  uploadThumbnail: async (courseId, formData) => {
+    const response = await api.put(`/courses/${courseId}/thumbnail`, formData, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    });
+    return response.data;
+  },
 };
 
 // User Services (Admin only)
 export const userService = {
-  getAll: async () => {
-    // This would need a new endpoint in backend
-    const response = await api.get('/users');
+  getAll: async (params = {}) => {
+    const response = await api.get('/users', { params });
+    return response.data;
+  },
+
+  getOne: async (id) => {
+    const response = await api.get(`/users/${id}`);
+    return response.data;
+  },
+
+  create: async (data) => {
+    const response = await api.post('/users', data);
+    return response.data;
+  },
+
+  update: async (id, data) => {
+    const response = await api.put(`/users/${id}`, data);
     return response.data;
   },
 
@@ -82,8 +103,8 @@ export const videoService = {
 
 // Order Services
 export const orderService = {
-  getAll: async () => {
-    const response = await api.get('/orders');
+  getAll: async (params = {}) => {
+    const response = await api.get('/orders', { params });
     return response.data;
   },
 
@@ -101,16 +122,18 @@ export const orderService = {
 // Stats Service (for dashboard)
 export const statsService = {
   getDashboardStats: async () => {
-    // Combine multiple requests
     const [courses, orders] = await Promise.all([
       courseService.getAll(),
       orderService.getAll(),
     ]);
-
     return {
       totalCourses: courses.count || courses.data?.length || 0,
       totalOrders: orders.count || orders.data?.length || 0,
-      // Add more stats as needed
     };
+  },
+
+  getAdminStats: async (params = {}) => {
+    const response = await api.get('/admin/stats', { params });
+    return response.data;
   },
 };

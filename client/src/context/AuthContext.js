@@ -61,11 +61,28 @@ export const AuthProvider = ({ children }) => {
     setIsAuthenticated(false);
   };
 
+  const loginWithToken = async (token) => {
+    if (!token) return null;
+    try {
+      localStorage.setItem('token', token);
+      const response = await authAPI.getMe();
+      const userData = response.data != null ? response.data : response;
+      setUser(userData);
+      setIsAuthenticated(true);
+      return userData;
+    } catch (error) {
+      console.error('Login with token failed:', error);
+      localStorage.removeItem('token');
+      throw error;
+    }
+  };
+
   const value = {
     user,
     loading,
     isAuthenticated,
     login,
+    loginWithToken,
     logout,
     checkAuth
   };

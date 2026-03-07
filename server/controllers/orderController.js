@@ -48,35 +48,46 @@ exports.createOrder = async (req, res, next) => {
 // @access  Private
 exports.getOrders = async (req, res, next) => {
   try {
-    console.log('📦 GET /api/orders - User:', req.user ? req.user.email : 'UNDEFINED');
-    console.log('📦 User role:', req.user ? req.user.role : 'UNDEFINED');
-    
     let query = {};
-    
-    // If not admin, only show user's own orders
+
     if (req.user.role !== 'admin') {
       query.userId = req.user._id;
-      console.log('📦 Non-admin user - filtering by userId:', req.user._id);
     } else {
-      console.log('📦 Admin user - fetching ALL orders');
+      const status = req.query.status;
+      const search = (req.query.search || '').trim();
+      const dateFrom = req.query.dateFrom;
+      const dateTo = req.query.dateTo;
+
+      if (status) query.status = status;
+      if (dateFrom || dateTo) {
+        query.createdAt = {};
+        if (dateFrom) query.createdAt.$gte = new Date(dateFrom);
+        if (dateTo) query.createdAt.$lte = new Date(dateTo + 'T23:59:59.999Z');
+      }
+      if (search) {
+        const User = require('../models/User');
+        const mongoose = require('mongoose');
+        const users = await User.find({
+          $or: [
+            { email: { $regex: search, $options: 'i' } },
+            { name: { $regex: search, $options: 'i' } }
+          ]
+        }).select('_id');
+        const userIds = users.map(u => u._id);
+        const searchConditions = [{ userId: { $in: userIds } }];
+        if (mongoose.Types.ObjectId.isValid(search) && search.length >= 6) {
+          try {
+            searchConditions.push({ _id: new mongoose.Types.ObjectId(search) });
+          } catch (_) {}
+        }
+        query.$and = (query.$and || []).concat([{ $or: searchConditions }]);
+      }
     }
-    
-    // First, get orders without populate to see if they exist
-    const ordersCount = await Order.countDocuments(query);
-    console.log('📦 Total orders found:', ordersCount);
-    
+
     const orders = await Order.find(query)
       .populate('courseId', 'title price thumbnail')
       .populate('userId', 'name email avatar')
       .sort({ createdAt: -1 });
-
-    console.log('📦 Orders after populate:', orders.length);
-    console.log('📦 First order sample:', orders[0] ? {
-      id: orders[0]._id,
-      courseId: orders[0].courseId,
-      userId: orders[0].userId,
-      status: orders[0].status
-    } : 'No orders');
 
     res.json({
       success: true,

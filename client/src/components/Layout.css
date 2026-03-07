@@ -1,19 +1,19 @@
 .layout {
   display: flex;
   min-height: 100vh;
-  background: #f5f7fa;
+  background: var(--bg-page);
 }
 
 .main-content {
-  margin-left: 280px;
+  margin-left: 260px;
   flex: 1;
-  padding: 30px;
+  padding: 28px 32px;
   min-height: 100vh;
 }
 
-@media (max-width: 768px) {
+@media (max-width: 1024px) {
   .main-content {
     margin-left: 0;
-    padding: 20px;
+    padding: 20px 24px;
   }
 }

@@ -17,6 +17,7 @@ function Sidebar() {
     { path: '/courses', icon: '📚', label: 'Quản lý khóa học' },
     { path: '/users', icon: '👥', label: 'Quản lý người dùng' },
     { path: '/orders', icon: '💰', label: 'Đơn hàng' },
+    { path: '/settings', icon: '⚙️', label: 'Cài đặt' },
   ];
 
   const instructorLinks = [

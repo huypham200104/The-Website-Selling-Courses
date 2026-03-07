@@ -1,11 +1,13 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useAuth } from '../context/AuthContext';
 import { courseService } from '../services/apiService';
 import Layout from '../components/Layout';
 import './CreateCourse.css';
 
 function CreateCourse() {
   const navigate = useNavigate();
+  const { user } = useAuth();
   const [loading, setLoading] = useState(false);
   const [formData, setFormData] = useState({
     title: '',
@@ -15,6 +17,9 @@ function CreateCourse() {
     level: 'beginner',
     thumbnail: ''
   });
+
+  const isAdmin = user?.role === 'admin';
+  const redirectPath = isAdmin ? '/courses' : '/instructor/courses';
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -35,7 +40,7 @@ function CreateCourse() {
       });
       
       alert('Tạo khóa học thành công! 🎉');
-      navigate('/instructor/courses');
+      navigate(redirectPath);
     } catch (error) {
       console.error('Error creating course:', error);
       alert('Có lỗi xảy ra khi tạo khóa học. Vui lòng thử lại.');
@@ -175,7 +180,7 @@ function CreateCourse() {
               <button
                 type="button"
                 className="btn-cancel"
-                onClick={() => navigate('/instructor/courses')}
+                onClick={() => navigate(redirectPath)}
                 disabled={loading}
               >
                 Hủy

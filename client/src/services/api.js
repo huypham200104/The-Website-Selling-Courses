@@ -41,11 +41,13 @@ export const authAPI = {
   login: (email, password) => api.post('/auth/login', { email, password }),
   getMe: () => api.get('/auth/me'),
   logout: () => api.post('/auth/logout'),
+  changePassword: (currentPassword, newPassword) =>
+    api.put('/auth/change-password', { currentPassword, newPassword }),
 };
 
 // User APIs
 export const userAPI = {
-  getAll: () => api.get('/users'),
+  getAll: (params) => api.get('/users', { params }),
   getOne: (id) => api.get(`/users/${id}`),
   create: (data) => api.post('/users', data),
   update: (id, data) => api.put(`/users/${id}`, data),
@@ -54,12 +56,14 @@ export const userAPI = {
 
 // Course APIs
 export const courseAPI = {
-  getAll: () => api.get('/courses'),
+  getAll: (params) => api.get('/courses', { params }),
   getOne: (id) => api.get(`/courses/${id}`),
   create: (data) => api.post('/courses', data),
   update: (id, data) => api.put(`/courses/${id}`, data),
   delete: (id) => api.delete(`/courses/${id}`),
   enroll: (id) => api.post(`/courses/${id}/enroll`),
+  uploadThumbnail: (id, formData) =>
+    api.put(`/courses/${id}/thumbnail`, formData, { headers: { 'Content-Type': 'multipart/form-data' } }),
 };
 
 // Video APIs
@@ -75,7 +79,7 @@ export const videoAPI = {
 
 // Order APIs
 export const orderAPI = {
-  getAll: () => api.get('/orders'),
+  getAll: (params) => api.get('/orders', { params }),
   getOne: (id) => api.get(`/orders/${id}`),
   create: (data) => api.post('/orders', data),
   update: (id, data) => api.put(`/orders/${id}`, data),
@@ -83,5 +87,10 @@ export const orderAPI = {
 
 // Health check
 export const healthCheck = () => api.get('/health');
+
+// Admin stats
+export const adminAPI = {
+  getStats: (params) => api.get('/admin/stats', { params }),
+};
 
 export default api;
