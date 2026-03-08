@@ -4,6 +4,7 @@ const {
   uploadChunk,
   mergeChunks,
   streamVideo,
+  getStreamToken,
   getVideo,
   deleteVideo
 } = require('../controllers/videoController');
@@ -17,7 +18,10 @@ router.post('/upload-chunk', auth, roleCheck('instructor', 'admin'), upload.sing
 // Merge chunks
 router.post('/merge-chunks', auth, roleCheck('instructor', 'admin'), mergeChunks);
 
-// Stream video
+// Get a short-lived stream token (requires normal JWT auth)
+router.get('/:id/stream-token', auth, getStreamToken);
+
+// Stream video — authenticated via Authorization header (MSE fetch)
 router.get('/:id/stream', auth, streamVideo);
 
 // Get video details

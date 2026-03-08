@@ -1,0 +1,453 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8" />
+  <title>MSE Test — Seek & Buffer</title>
+  <style>
+    body { font-family: monospace; padding: 20px; background: #111; color: #eee; }
+    video { width: 100%; max-width: 800px; display: block; margin: 16px 0; background: #000; }
+    #log { white-space: pre-wrap; background: #1a1a1a; padding: 12px; border-radius: 6px;
+           font-size: 12px; max-height: 360px; overflow-y: auto; }
+    .ok   { color: #4f4; } .err  { color: #f66; } .info { color: #4af; } .warn { color: #fa4; }
+    input { width: 420px; padding: 6px; font-family: monospace; background: #222;
+            color: #eee; border: 1px solid #555; border-radius: 3px; }
+    button { padding: 7px 16px; cursor: pointer; background: #2255aa; color: #fff;
+             border: none; border-radius: 4px; margin: 3px; font-size: 13px; }
+    button:hover { background: #3366cc; }
+    button.danger { background: #882222; }
+    #status-bar { margin: 8px 0; padding: 8px; background: #1a1a2a; border-radius: 4px; font-size: 12px; }
+    #seek-btns  { display: flex; flex-wrap: wrap; gap: 4px; margin: 8px 0; }
+    #seek-btns button { padding: 5px 10px; font-size: 11px; background: #1a3a1a; }
+    h3 { margin: 16px 0 4px; color: #adf; font-size: 14px; }
+  </style>
+</head>
+<body>
+  <h2>MSE Test — Seek &amp; Buffer Validation</h2>
+
+  <div>
+    <label>Video ID: <input id="videoId" placeholder="MongoDB _id" /></label>
+  </div>
+  <div style="margin-top:8px">
+    <label>Token: <input id="token" placeholder="JWT token (auto-filled from localStorage)" /></label>
+  </div>
+  <div style="margin-top:10px">
+    <button onclick="runAll()">▶ Run All Tests</button>
+    <button onclick="startPlayback()">▶ Playback Only</button>
+    <button class="danger" onclick="resetAll()">✕ Reset</button>
+  </div>
+
+  <video id="v" controls></video>
+
+  <div id="status-bar">Status: idle</div>
+
+  <h3>Quick Seek Buttons (loaded after metadata)</h3>
+  <div id="seek-btns"><em style="color:#888">Start a test first…</em></div>
+
+  <h3>Log</h3>
+  <div id="log"></div>
+
+  <script>
+  (() => {
+    const API   = 'http://localhost:5000/api';
+    const CHUNK = 8 * 1024 * 1024;   // 8 MB — matches VideoPlayer.js
+    const AHEAD = 60;
+    const EVICT = 30;
+    const MIME_TYPES = [
+      'video/mp4; codecs="avc1.4D4028, mp4a.40.2"',
+      'video/mp4; codecs="avc1.64002A, mp4a.40.2"',
+      'video/mp4; codecs="avc1.640028, mp4a.40.2"',
+      'video/mp4; codecs="avc1.4D401F, mp4a.40.2"',
+      'video/mp4; codecs="avc1.42E01E, mp4a.40.2"',
+    ];
+
+    // ── log helpers ──────────────────────────────────────────────────────────
+    function log(msg, cls = 'info') {
+      const el = document.getElementById('log');
+      const d  = document.createElement('div');
+      d.className = cls;
+      d.textContent = `[${new Date().toISOString().slice(11,23)}] ${msg}`;
+      el.appendChild(d);
+      el.scrollTop = el.scrollHeight;
+    }
+    function status(msg) {
+      document.getElementById('status-bar').textContent = 'Status: ' + msg;
+    }
+    function pass(label) { log(`✅ PASS  ${label}`, 'ok'); }
+    function fail(label, reason) { log(`❌ FAIL  ${label} — ${reason}`, 'err'); }
+    function info(msg)  { log(`ℹ  ${msg}`, 'info'); }
+    function warn(msg)  { log(`⚠  ${msg}`, 'warn'); }
+
+    // ── state ────────────────────────────────────────────────────────────────
+    let video, ms, sb, blobUrl;
+    let meta, seekTable = [], totalSize = 0;
+    let initBuf       = null;   // cached ftyp+moov from first fetch
+    let seekNeedsInit = false;  // re-prepend initBuf after remove(0,Infinity)
+    let fetchedEnd  = -1;
+    let isFetching  = false;
+    let seekTarget  = -1;
+    let pendingBuf  = null;
+    let isFirstBuf  = true;
+    let abortCtrl   = null;
+    let fetchGen    = 0;
+    let token;
+
+    function getToken() {
+      return document.getElementById('token').value.trim() || localStorage.getItem('token') || '';
+    }
+
+    function resetAll() {
+      if (video) { video.pause(); video.removeAttribute('src'); }
+      if (ms && ms.readyState === 'open') { try { ms.endOfStream(); } catch(_){} }
+      if (blobUrl) URL.revokeObjectURL(blobUrl);
+      if (abortCtrl) { abortCtrl.abort(); abortCtrl = null; }
+      sb = ms = blobUrl = null; initBuf = null;
+      fetchedEnd = -1; isFetching = false; seekTarget = -1;
+      pendingBuf = null; isFirstBuf = true; seekNeedsInit = false;
+      document.getElementById('log').innerHTML = '';
+      document.getElementById('seek-btns').innerHTML = '<em style="color:#888">Start a test first…</em>';
+      status('Reset.');
+    }
+
+    // ── seek table binary search ─────────────────────────────────────────────
+    function timeToOffset(t) {
+      if (seekTable.length > 0) {
+        let lo = 0, hi = seekTable.length - 1;
+        while (lo < hi) {
+          const mid = (lo + hi + 1) >> 1;
+          if (seekTable[mid].t <= t) lo = mid; else hi = mid - 1;
+        }
+        return seekTable[lo].b;
+      }
+      if (!meta || !totalSize) return 0;
+      const raw = Math.floor((t / meta.duration) * totalSize);
+      return Math.max(0, raw - (raw % CHUNK));
+    }
+
+    function bufferedAhead() {
+      if (!sb || !sb.buffered.length) return 0;
+      const t = video.currentTime;
+      for (let i = 0; i < sb.buffered.length; i++)
+        if (t >= sb.buffered.start(i) && t <= sb.buffered.end(i) + 0.5)
+          return sb.buffered.end(i) - t;
+      return 0;
+    }
+
+    function isBuffered(t) {
+      if (!sb) return false;
+      for (let i = 0; i < sb.buffered.length; i++)
+        if (t >= sb.buffered.start(i) && t <= sb.buffered.end(i) + 0.5) return true;
+      return false;
+    }
+
+    // ── fetch ────────────────────────────────────────────────────────────────
+    async function fetchFrom(startByte) {
+      if (isFetching) return;
+      if (totalSize > 0 && startByte >= totalSize) {
+        if (ms && ms.readyState === 'open') { try { ms.endOfStream(); } catch(_){} }
+        return;
+      }
+      isFetching = true;
+      const myGen = ++fetchGen;
+      if (abortCtrl) abortCtrl.abort();
+      abortCtrl = new AbortController();
+      const endByte = Math.min(startByte + CHUNK - 1, totalSize > 0 ? totalSize - 1 : startByte + CHUNK - 1);
+      info(`Fetching bytes ${startByte.toLocaleString()}–${endByte.toLocaleString()} (${((endByte-startByte+1)/1024/1024).toFixed(2)} MB)`);
+
+      try {
+        const res = await fetch(`${API}/videos/${meta._id}/stream`, {
+          signal: abortCtrl.signal,
+          headers: { Authorization: `Bearer ${token}`, Range: `bytes=${startByte}-${endByte}` },
+        });
+        if (myGen !== fetchGen) { isFetching=false; return; }
+        log(`HTTP ${res.status}`, res.status === 206 ? 'ok' : 'err');
+
+        if (res.status === 416) { if (ms.readyState==='open') ms.endOfStream(); isFetching=false; return; }
+        if (!res.ok) { fail('Fetch', `HTTP ${res.status}`); isFetching=false; return; }
+
+        if (totalSize === 0) {
+          const cr = res.headers.get('Content-Range');
+          if (cr) { const m = cr.match(/\/(\d+)$/); if (m) totalSize=parseInt(m[1]); }
+        }
+
+        const buf = await res.arrayBuffer();
+        if (myGen !== fetchGen) { isFetching=false; return; }
+
+        // Cache ftyp+moov ONLY from the very first fetch.
+        // Do NOT include sidx: those describe segment offsets from the start
+        // of the file. Prepending them before a seek chunk at a totally
+        // different file offset confuses Chrome's demuxer.
+        if (startByte === 0 && !initBuf && buf.byteLength > 8) {
+          const dv = new DataView(buf);
+          const ftypSize = dv.getUint32(0);
+          if (buf.byteLength >= ftypSize + 8) {
+            const moovSize = dv.getUint32(ftypSize);
+            const tag = String.fromCharCode(
+              dv.getUint8(ftypSize+4), dv.getUint8(ftypSize+5),
+              dv.getUint8(ftypSize+6), dv.getUint8(ftypSize+7)
+            );
+            if (tag === 'moov' && buf.byteLength >= ftypSize + moovSize) {
+              initBuf = buf.slice(0, ftypSize + moovSize); // 28 + 1254 = 1282 bytes
+              info(`initBuf cached: ${initBuf.byteLength} bytes (ftyp+moov only, no sidx)`);
+            }
+          }
+        }
+
+        fetchedEnd = startByte + buf.byteLength - 1;
+        info(`Received ${(buf.byteLength/1024/1024).toFixed(2)} MB | fetchedEnd=${fetchedEnd.toLocaleString()}`);
+
+        if (!sb || sb.updating || ms.readyState !== 'open') { isFetching=false; return; }
+
+        // PRIORITY: seek reinit must run before eviction.
+        // When seek fires while sb.updating=true (PATH A) the old buffer is never
+        // cleared. video.currentTime is already at the seek target, so evictTo can
+        // intersect old data and fire before seekNeedsInit — bypassing initBuf and
+        // queuing the moof chunk as a plain pendingBuf. Chrome then ignores the bare
+        // moof (parser in AWAITING_INIT_SEGMENT) and the NEXT chunk (non-boundary)
+        // wrongly gets the initBuf prepend → CHUNK_DEMUXER_ERROR_APPEND_FAILED.
+        if (seekNeedsInit && initBuf) {
+          seekNeedsInit = false;
+          pendingBuf = buf;             // queued seek chunk
+          sb.appendBuffer(initBuf);     // step 1: re-initialize
+          info(`Sent initBuf (${initBuf.byteLength}B) — seek chunk queued as pendingBuf`);
+          return;                       // step 2: append seekChunk in onUpdateEnd
+        }
+
+        const evictTo = video.currentTime - EVICT;
+        if (evictTo > 0 && sb.buffered.length > 0 && sb.buffered.start(0) < evictTo) {
+          pendingBuf = buf;
+          try { sb.remove(0, evictTo); return; } catch(_) { pendingBuf=null; }
+        }
+        sb.appendBuffer(buf);
+      } catch(e) {
+        if (e.name === 'AbortError') { isFetching=false; return; }
+        fail('Network', e.message);
+        isFetching = false;
+      }
+    }
+
+    function maybeLoadMore() {
+      if (!sb || sb.updating || isFetching || !totalSize) return;
+      if (fetchedEnd + 1 >= totalSize) return;
+      if (bufferedAhead() < AHEAD) fetchFrom(fetchedEnd + 1);
+    }
+
+    // ── SourceBuffer updateend ───────────────────────────────────────────────
+    function onUpdateEnd() {
+      if (pendingBuf) {
+        const buf = pendingBuf; pendingBuf = null;
+        if (ms.readyState === 'open' && !sb.updating) { sb.appendBuffer(buf); return; }
+        isFetching = false;
+      } else {
+        isFetching = false;
+      }
+
+      if (isFirstBuf) {
+        isFirstBuf = false;
+        pass('Initial buffer appended');
+        status('Playing…');
+        video.play().catch(e => warn(`Autoplay blocked: ${e.message}`));
+      }
+
+      if (seekTarget >= 0) {
+        const t = seekTarget; seekTarget = -1;
+        seekNeedsInit = true;
+        // Reset parser to AWAITING_INIT_SEGMENT — required before re-sending initBuf.
+        try { if (!sb.updating) sb.abort(); } catch(_) {}
+        fetchedEnd = t - 1;
+        fetchFrom(t);
+        return;
+      }
+      maybeLoadMore();
+    }
+
+    video && video.addEventListener('timeupdate', () => {
+      if (!sb || sb.updating || isFetching) return;
+      document.getElementById('status-bar').textContent =
+        `Status: playing | t=${video.currentTime.toFixed(1)}s` +
+        ` | buffered ahead: ${bufferedAhead().toFixed(1)}s` +
+        ` | fetchedEnd: ${(fetchedEnd/1024/1024).toFixed(1)} MB`;
+      maybeLoadMore();
+    });
+
+    function onSeeking() {
+      if (!sb || !totalSize || !meta) return;
+      const t = video.currentTime;
+      if (isBuffered(t)) { info(`Seek to ${t.toFixed(2)}s — already buffered ✓`); return; }
+
+      const target = timeToOffset(t);
+      info(`Seek to ${t.toFixed(2)}s → byte offset ${target.toLocaleString()}`);
+
+      // Verify the offset maps to a seekTable entry
+      if (seekTable.length > 0) {
+        let lo = 0, hi = seekTable.length - 1;
+        while (lo < hi) { const m=(lo+hi+1)>>1; if(seekTable[m].t<=t) lo=m; else hi=m-1; }
+        const entry = seekTable[lo];
+        if (entry.b === target) pass(`Seek offset matches seekTable[${lo}] t=${entry.t}s b=${entry.b}`);
+        else fail('Seek offset', `expected b=${entry.b}, got ${target}`);
+      }
+
+      if (sb.updating) { seekTarget = target; return; }
+      fetchGen++;
+      if (abortCtrl) { abortCtrl.abort(); abortCtrl = null; }
+      isFetching = false; seekTarget = -1; fetchedEnd = target - 1;
+      try { sb.remove(0, Infinity); seekTarget = target; }
+      catch(_) { seekNeedsInit = true; fetchFrom(target); }
+    }
+
+    // ── sourceopen ───────────────────────────────────────────────────────────
+    function onSourceOpen() {
+      pass('sourceopen fired');
+      const mime = MIME_TYPES.find(t => MediaSource.isTypeSupported(t));
+      log(`Codec: ${mime ?? 'NONE'}`, mime ? 'ok' : 'err');
+      if (!mime) { fail('Codec', 'no supported MIME type found'); return; }
+
+      try { sb = ms.addSourceBuffer(mime); }
+      catch(e) { fail('addSourceBuffer', e.message); return; }
+      pass('SourceBuffer created');
+
+      if (meta && meta.duration > 0) {
+        try { ms.duration = meta.duration; pass(`ms.duration = ${meta.duration}s`); }
+        catch(e) { warn(`ms.duration failed: ${e.message}`); }
+      }
+
+      sb.mode = 'segments';
+      sb.addEventListener('updateend', onUpdateEnd);
+      video.addEventListener('timeupdate', () => {
+        document.getElementById('status-bar').textContent =
+          `t=${video.currentTime.toFixed(1)}s | ahead=${bufferedAhead().toFixed(1)}s | fetched=${(fetchedEnd/1024/1024).toFixed(1)}MB`;
+        if (!sb.updating && !isFetching) maybeLoadMore();
+      });
+      video.addEventListener('seeking', onSeeking);
+
+      fetchFrom(0);
+    }
+
+    // ── init MSE ─────────────────────────────────────────────────────────────
+    function initMSE() {
+      video = document.getElementById('v');
+      video.removeAttribute('src');
+      if (blobUrl) URL.revokeObjectURL(blobUrl);
+
+      video.addEventListener('error', () => {
+        const e = video.error;
+        fail(`video.error code=${e?.code}`, e?.message ?? 'unknown');
+      });
+
+      ms      = new MediaSource();
+      blobUrl = URL.createObjectURL(ms);
+      ms.addEventListener('sourceopen', onSourceOpen);
+      video.src = blobUrl;
+      info(`MediaSource created | blobUrl=${blobUrl}`);
+
+      setTimeout(() => {
+        if (ms.readyState !== 'open')
+          fail('sourceopen timeout', `readyState=${ms.readyState} networkState=${video.networkState}`);
+      }, 4000);
+    }
+
+    // ── load metadata ────────────────────────────────────────────────────────
+    async function loadMeta(videoId) {
+      token = getToken();
+      info(`Loading metadata for videoId=${videoId}…`);
+      const r = await fetch(`${API}/videos/${videoId}`, { headers: { Authorization: `Bearer ${token}` } });
+      if (!r.ok) { fail('Metadata fetch', `HTTP ${r.status}`); return false; }
+      const json = await r.json();
+      meta = json.data;
+
+      pass(`Metadata loaded: "${meta.title}"`);
+      info(`  duration : ${meta.duration}s`);
+      info(`  size     : ${(meta.size/1024/1024).toFixed(1)} MB`);
+      totalSize = meta.size || 0;
+
+      if (Array.isArray(meta.seekTable) && meta.seekTable.length > 0) {
+        seekTable = meta.seekTable;
+        pass(`seekTable loaded: ${seekTable.length} entries`);
+        info(`  first: t=${seekTable[0].t}s  b=${seekTable[0].b}`);
+        info(`  last : t=${seekTable[seekTable.length-1].t}s  b=${seekTable[seekTable.length-1].b}`);
+        renderSeekButtons();
+      } else {
+        fail('seekTable', 'empty or missing — run gen-seek-table.js');
+      }
+      return true;
+    }
+
+    // ── seek buttons ─────────────────────────────────────────────────────────
+    function renderSeekButtons() {
+      const container = document.getElementById('seek-btns');
+      container.innerHTML = '';
+      // Add ~10 evenly spaced seek buttons spread across the video
+      const steps = 10;
+      for (let i = 0; i <= steps; i++) {
+        const targetSec = (meta.duration / steps) * i;
+        const entry     = nearestSeekEntry(targetSec);
+        const btn       = document.createElement('button');
+        const mm = String(Math.floor(entry.t / 60)).padStart(2,'0');
+        const ss = String(Math.floor(entry.t % 60)).padStart(2,'0');
+        btn.textContent = `${mm}:${ss}`;
+        btn.title = `byte offset ${entry.b.toLocaleString()}`;
+        btn.onclick = () => {
+          if (!video) return;
+          info(`--- Manual seek to ${mm}:${ss} (t=${entry.t}s, b=${entry.b}) ---`);
+          video.currentTime = entry.t + 0.001; // trigger 'seeking' event
+        };
+        container.appendChild(btn);
+      }
+    }
+
+    function nearestSeekEntry(t) {
+      let lo = 0, hi = seekTable.length - 1;
+      while (lo < hi) { const m=(lo+hi+1)>>1; if(seekTable[m].t<=t) lo=m; else hi=m-1; }
+      return seekTable[lo];
+    }
+
+    // ── test runner ──────────────────────────────────────────────────────────
+    async function runAll() {
+      resetAll();
+      const videoId = document.getElementById('videoId').value.trim();
+      if (!videoId) { fail('Setup', 'Enter a video ID'); return; }
+
+      log('══════════ TEST RUN START ══════════', 'warn');
+
+      // T1: MSE availability
+      if (!window.MediaSource) { fail('T1 MSE support', 'window.MediaSource not available'); return; }
+      pass('T1: MSE supported');
+
+      // T2: codec support
+      const mime = MIME_TYPES.find(t => MediaSource.isTypeSupported(t));
+      if (!mime) { fail('T2 Codec', 'no supported MIME'); return; }
+      pass(`T2: Codec supported — ${mime}`);
+
+      // T3: metadata + seek table
+      const ok = await loadMeta(videoId);
+      if (!ok) return;
+      pass('T3: Metadata + seekTable OK');
+
+      // T4: init MSE + initial playback
+      status('Starting MSE…');
+      initMSE();
+      // (T4 pass/fail logged inside sourceopen / onUpdateEnd callbacks)
+    }
+
+    async function startPlayback() {
+      resetAll();
+      const videoId = document.getElementById('videoId').value.trim();
+      if (!videoId) { fail('Setup', 'Enter a video ID'); return; }
+      const ok = await loadMeta(videoId);
+      if (!ok) return;
+      initMSE();
+    }
+
+    // ── pre-fill ─────────────────────────────────────────────────────────────
+    window.addEventListener('load', () => {
+      const t = localStorage.getItem('token');
+      if (t) document.getElementById('token').value = t;
+    });
+
+    // Expose to HTML onclick attrs
+    window.runAll        = runAll;
+    window.startPlayback = startPlayback;
+    window.resetAll      = resetAll;
+  })();
+  </script>
+</body>
+</html>
