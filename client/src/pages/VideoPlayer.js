@@ -124,7 +124,7 @@ function VideoPlayer({ videoId, className }) {
           },
         });
 
-        if (destroyed || myGen !== fetchGen) { isFetching = false; return; }
+        if (destroyed || myGen !== fetchGen) return;
 
         if (res.status === 416) {
           if (ms.readyState === 'open') { try { ms.endOfStream(); } catch (_) {} }
@@ -144,7 +144,7 @@ function VideoPlayer({ videoId, className }) {
         }
 
         const buf = await res.arrayBuffer();
-        if (destroyed || myGen !== fetchGen) { isFetching = false; return; }
+        if (destroyed || myGen !== fetchGen) return;
 
         // Cache ftyp+moov ONLY from the very first fetch.
         // Do NOT include sidx: those describe segment offsets from the start
@@ -198,7 +198,7 @@ function VideoPlayer({ videoId, className }) {
 
         sb.appendBuffer(buf);
       } catch (err) {
-        if (err.name === 'AbortError') { isFetching = false; return; }
+        if (err.name === 'AbortError') { if (myGen === fetchGen) isFetching = false; return; }
         if (!destroyed) setError(`Lỗi mạng: ${err.message}`);
         isFetching = false;
       }
