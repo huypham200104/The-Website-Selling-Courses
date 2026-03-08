@@ -26,11 +26,7 @@ const videoSchema = new mongoose.Schema({
     resolution: String, // '360p', '480p', '720p', '1080p'
     url: String
   }],
-  // Keyframe seek table: [{t: seconds, b: byteOffset}] — built by gen-seek-table.js
-  seekTable: [{
-    t: Number,  // presentation time in seconds
-    b: Number,  // byte offset of the moof box
-  }],
+  // seekTable removed — built from file on first stream request and cached in memory
   createdAt: {
     type: Date,
     default: Date.now
