@@ -11,6 +11,7 @@ import Users from './pages/Users';
 import InstructorCourses from './pages/InstructorCourses';
 import CreateCourse from './pages/CreateCourse';
 import InstructorStudents from './pages/InstructorStudents';
+import CourseLearn from './pages/CourseLearn';
 import PrivateRoute from './components/PrivateRoute';
 import './App.css';
 
@@ -99,6 +100,14 @@ function AppRoutes() {
         element={
           <PrivateRoute allowedRoles={['student']}>
             <StudentDashboard />
+          </PrivateRoute>
+        }
+      />
+      <Route
+        path="/student/course/:courseId"
+        element={
+          <PrivateRoute allowedRoles={['student']}>
+            <CourseLearn />
           </PrivateRoute>
         }
       />

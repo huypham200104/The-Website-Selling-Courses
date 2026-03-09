@@ -9,6 +9,7 @@ exports.getCourses = async (req, res, next) => {
     const courses = await Course.find()
       .populate('instructor', 'name avatar')
       .populate('videos', 'title duration')
+      .populate('students', '_id')
       .sort({ createdAt: -1 });
     
     res.json({

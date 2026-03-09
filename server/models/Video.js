@@ -26,6 +26,7 @@ const videoSchema = new mongoose.Schema({
     resolution: String, // '360p', '480p', '720p', '1080p'
     url: String
   }],
+  // seekTable removed — built from file on first stream request and cached in memory
   createdAt: {
     type: Date,
     default: Date.now

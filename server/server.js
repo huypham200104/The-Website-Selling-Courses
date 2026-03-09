@@ -13,7 +13,14 @@ const app = express();
 // Rate limiting
 const limiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 100 // limit each IP to 100 requests per windowMs
+  max: 100, // limit each IP to 100 requests per windowMs
+  skip: (req) => req.path.includes('/videos/') && req.path.includes('/stream')
+});
+
+// Separate, generous limiter for video streaming chunks
+const streamLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 5000, // plenty for large videos
 });
 
 // Middleware
@@ -22,7 +29,8 @@ app.use(helmet({
 }));
 app.use(cors({
   origin: process.env.CLIENT_URL,
-  credentials: true
+  credentials: true,
+  exposedHeaders: ['Content-Range', 'Accept-Ranges', 'Content-Length', 'Content-Type'],
 }));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
@@ -42,6 +50,7 @@ connectDB().then(() => {
 // Routes
 app.use('/api/auth', require('./routes/auth'));
 app.use('/api/courses', require('./routes/courses'));
+app.use('/api/videos/:id/stream', streamLimiter);
 app.use('/api/videos', require('./routes/videos'));
 app.use('/api/orders', require('./routes/orders'));
 app.use('/api/users', require('./routes/users'));

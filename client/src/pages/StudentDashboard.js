@@ -24,9 +24,9 @@ function StudentDashboard() {
       
       setCourses(allCourses);
       
-      // Filter courses student has purchased
+      // Filter courses student is enrolled in
       const purchased = allCourses.filter(course =>
-        user?.purchasedCourses?.includes(course._id)
+        course.students?.some(s => s._id === user?._id)
       );
       setMyCourses(purchased);
     } catch (error) {
@@ -102,7 +102,7 @@ function StudentDashboard() {
           {activeTab === 'all' && (
             <div className="courses-grid">
               {courses.map((course) => {
-                const isPurchased = myCourses.some(c => c._id === course._id);
+                const isPurchased = course.students?.some(s => s._id === user?._id);
                 
                 return (
                   <div key={course._id} className="course-card">
@@ -155,7 +155,7 @@ function StudentDashboard() {
                         <span>🎬 {course.videos.length} videos</span>
                         <span>⭐ {course.rating}</span>
                       </div>
-                      <button className="btn-continue">▶️ Tiếp tục học</button>
+                      <button className="btn-continue" onClick={() => navigate(`/student/course/${course._id}`)}>▶️ Tiếp tục học</button>
                     </div>
                   </div>
                 ))
