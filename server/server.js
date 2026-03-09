@@ -5,7 +5,13 @@ const passport = require('passport');
 const rateLimit = require('express-rate-limit');
 require('dotenv').config();
 
-// Import config
+// Configure ffmpeg globally
+const ffmpeg = require('fluent-ffmpeg');
+const ffmpegPath = require('ffmpeg-static');
+const ffprobePath = require('ffprobe-static').path;
+ffmpeg.setFfmpegPath(ffmpegPath);
+ffmpeg.setFfprobePath(ffprobePath);
+
 const connectDB = require('./config/db');
 
 const app = express();
