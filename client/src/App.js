@@ -10,6 +10,8 @@ import Orders from './pages/Orders';
 import Users from './pages/Users';
 import InstructorCourses from './pages/InstructorCourses';
 import CreateCourse from './pages/CreateCourse';
+import EditCourse from './pages/EditCourse';
+import InstructorCourseDetail from './pages/InstructorCourseDetail';
 import InstructorStudents from './pages/InstructorStudents';
 import PrivateRoute from './components/PrivateRoute';
 import './App.css';
@@ -81,6 +83,22 @@ function AppRoutes() {
         element={
           <PrivateRoute allowedRoles={['instructor']}>
             <CreateCourse />
+          </PrivateRoute>
+        }
+      />
+      <Route
+        path="/instructor/courses/:id"
+        element={
+          <PrivateRoute allowedRoles={['instructor']}>
+            <InstructorCourseDetail />
+          </PrivateRoute>
+        }
+      />
+      <Route
+        path="/instructor/courses/:id/edit"
+        element={
+          <PrivateRoute allowedRoles={['instructor']}>
+            <EditCourse />
           </PrivateRoute>
         }
       />

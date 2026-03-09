@@ -35,7 +35,10 @@ module.exports = (passport) => {
 
   // JWT Strategy
   const opts = {
-    jwtFromRequest: ExtractJwt.fromAuthHeaderAsBearerToken(),
+    jwtFromRequest: ExtractJwt.fromExtractors([
+      ExtractJwt.fromAuthHeaderAsBearerToken(),
+      ExtractJwt.fromUrlQueryParameter('token')
+    ]),
     secretOrKey: process.env.JWT_SECRET
   };
 

@@ -1,12 +1,14 @@
-import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import React, { useState, useEffect } from 'react';
+import { useNavigate, useParams } from 'react-router-dom';
 import { courseService } from '../services/apiService';
 import Layout from '../components/Layout';
-import './CreateCourse.css';
+import './CreateCourse.css'; // Reusing create course styling
 
-function CreateCourse() {
+function EditCourse() {
+  const { id } = useParams();
   const navigate = useNavigate();
   const [loading, setLoading] = useState(false);
+  const [fetching, setFetching] = useState(true);
   const [formData, setFormData] = useState({
     title: '',
     description: '',
@@ -15,6 +17,32 @@ function CreateCourse() {
     level: 'beginner',
     thumbnail: ''
   });
+
+  useEffect(() => {
+    fetchCourse();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [id]);
+
+  const fetchCourse = async () => {
+    try {
+      const response = await courseService.getOne(id);
+      const course = response.data;
+      setFormData({
+        title: course.title || '',
+        description: course.description || '',
+        price: course.price || 0,
+        category: course.category || '',
+        level: course.level || 'beginner',
+        thumbnail: course.thumbnail || ''
+      });
+    } catch (error) {
+      console.error('Error fetching course:', error);
+      alert('Không tìm thấy khóa học để chỉnh sửa');
+      navigate('/instructor/courses');
+    } finally {
+      setFetching(false);
+    }
+  };
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -29,27 +57,31 @@ function CreateCourse() {
     setLoading(true);
 
     try {
-      const response = await courseService.create({
+      await courseService.update(id, {
         ...formData,
         price: Number(formData.price)
       });
       
-      alert('Tạo khóa học thành công! Bạn có thể tải lên các video cho khóa học. 🎉');
-      navigate(`/instructor/courses/${response.data._id}`);
+      alert('Cập nhật khóa học thành công! 🎉');
+      navigate('/instructor/courses');
     } catch (error) {
-      console.error('Error creating course:', error);
-      alert('Có lỗi xảy ra khi tạo khóa học. Vui lòng thử lại.');
+      console.error('Error updating course:', error);
+      alert('Có lỗi xảy ra khi cập nhật khóa học. Vui lòng thử lại.');
     } finally {
       setLoading(false);
     }
   };
 
+  if (fetching) {
+    return <Layout><div className="loading">Đang tải thông tin khóa học...</div></Layout>;
+  }
+
   return (
     <Layout>
       <div className="create-course-page">
         <div className="page-header">
-          <h1>➕ Tạo khóa học mới</h1>
-          <p>Chia sẻ kiến thức của bạn với học viên trên toàn thế giới</p>
+          <h1>✏️ Chỉnh sửa khóa học</h1>
+          <p>Cập nhật thông tin chi tiết về khóa học của bạn</p>
         </div>
 
         <div className="form-container">
@@ -70,7 +102,6 @@ function CreateCourse() {
                   placeholder="Ví dụ: Lập trình React từ cơ bản đến nâng cao"
                   required
                 />
-                <small>Tên khóa học nên rõ ràng và hấp dẫn</small>
               </div>
 
               <div className="form-group">
@@ -86,7 +117,6 @@ function CreateCourse() {
                   placeholder="Mô tả chi tiết về khóa học, nội dung, đối tượng học viên..."
                   required
                 />
-                <small>Mô tả giúp học viên hiểu rõ về khóa học của bạn</small>
               </div>
 
               <div className="form-row">
@@ -143,7 +173,6 @@ function CreateCourse() {
                     step="1000"
                     required
                   />
-                  <small>Giá bằng 0 = Miễn phí</small>
                 </div>
 
                 <div className="form-group">
@@ -159,7 +188,6 @@ function CreateCourse() {
                     placeholder="https://example.com/image.jpg"
                     required
                   />
-                  <small>Link ảnh từ internet (jpg, png)</small>
                 </div>
               </div>
 
@@ -185,25 +213,14 @@ function CreateCourse() {
                 className="btn-submit"
                 disabled={loading}
               >
-                {loading ? '⏳ Đang tạo...' : '✅ Tạo khóa học'}
+                {loading ? '⏳ Đang lưu...' : '💾 Lưu thay đổi'}
               </button>
             </div>
           </form>
-
-          <div className="help-section">
-            <h3>💡 Gợi ý</h3>
-            <ul>
-              <li>Tên khóa học nên ngắn gọn, dễ hiểu và hấp dẫn</li>
-              <li>Mô tả chi tiết giúp tăng tỷ lệ đăng ký</li>
-              <li>Chọn thumbnail đẹp, chất lượng cao</li>
-              <li>Định giá hợp lý dựa trên giá trị nội dung</li>
-              <li>Sau khi tạo khóa học, bạn có thể thêm video và tài liệu</li>
-            </ul>
-          </div>
         </div>
       </div>
     </Layout>
   );
 }
 
-export default CreateCourse;
+export default EditCourse;

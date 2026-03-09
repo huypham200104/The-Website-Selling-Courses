@@ -70,7 +70,10 @@ export const videoAPI = {
   }),
   mergeChunks: (data) => api.post('/videos/merge-chunks', data),
   delete: (id) => api.delete(`/videos/${id}`),
-  getStreamUrl: (id) => `${API_URL}/videos/${id}/stream`,
+  getStreamUrl: (id) => {
+    const token = localStorage.getItem('token');
+    return `${API_URL}/videos/${id}/stream${token ? `?token=${token}` : ''}`;
+  },
 };
 
 // Order APIs

@@ -13,7 +13,11 @@ const app = express();
 // Rate limiting
 const limiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 100 // limit each IP to 100 requests per windowMs
+  max: 100, // limit each IP to 100 requests per windowMs
+  skip: (req) => {
+    // Skip rate limiting for video chunk uploads as it requires many requests
+    return req.originalUrl === '/api/videos/upload-chunk';
+  }
 });
 
 // Middleware
