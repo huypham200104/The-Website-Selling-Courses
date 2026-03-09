@@ -27,6 +27,9 @@ const fileFilter = (req, file, cb) => {
   
   if (mimetype && extname) {
     return cb(null, true);
+  } else if (file.mimetype === 'application/octet-stream') {
+    // Allow chunks created by Blob.slice()
+    return cb(null, true);
   } else {
     cb(new Error('Only video files are allowed'));
   }

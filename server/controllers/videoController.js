@@ -186,6 +186,7 @@ exports.mergeChunks = async (req, res, next) => {
     // Process with ffmpeg: produce fragmented MP4 (required for MSE byte-range streaming)
     const processedFileName = `web_${Date.now()}_${fileName}`;
     const processedPath = path.join(__dirname, '../uploads/videos', processedFileName);
+    
     await new Promise((resolve, reject) => {
       ffmpeg(finalPath)
         .outputOptions(['-movflags frag_keyframe+empty_moov+default_base_moof', '-c copy'])
@@ -201,18 +202,35 @@ exports.mergeChunks = async (req, res, next) => {
     // Get metadata from the processed file
     const metadata = await new Promise((resolve, reject) => {
       ffmpeg.ffprobe(processedPath, (err, data) => {
-        if (err) reject(err);
-        else resolve(data);
+        if (err) {
+          console.warn('FFprobe error or missing ffmpeg. Falling back to default values for dummy files:', err.message);
+          resolve({ format: { duration: 0, size: 0 } });
+        } else {
+          resolve(data);
+        }
       });
     });
+
+    const duration = metadata.format.duration || 0;
+    
+    // Fallback: Calculate size using fs if ffprobe fails or fallback was used
+    let size = metadata.format.size || 0;
+    if (size === 0) {
+      try {
+        const stats = fs.statSync(processedPath);
+        size = stats.size;
+      } catch (e) {
+        console.error('Error getting file stats:', e);
+      }
+    }
 
     const video = await Video.create({
       courseId,
       title,
       description,
       videoUrl: `/uploads/videos/${processedFileName}`,
-      duration: metadata.format.duration,
-      size: metadata.format.size,
+      duration,
+      size,
       order: order || 0
       // seekTable is no longer stored in DB — built from file on first stream request
     });

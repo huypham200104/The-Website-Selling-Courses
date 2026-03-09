@@ -14,7 +14,15 @@ const app = express();
 const limiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
   max: 100, // limit each IP to 100 requests per windowMs
-  skip: (req) => req.path.includes('/videos/') && req.path.includes('/stream')
+  skip: (req) => {
+    // Skip rate limiting for video chunk uploads as it requires many requests
+    if (req.originalUrl === '/api/videos/upload-chunk') return true;
+    
+    // Skip rate limit for video streaming
+    if (req.path.includes('/videos/') && req.path.includes('/stream')) return true;
+    
+    return false;
+  }
 });
 
 // Separate, generous limiter for video streaming chunks
