@@ -7,6 +7,7 @@ const ffmpegPath = require('ffmpeg-static');
 const ffprobePath = require('ffprobe-static').path;
 ffmpeg.setFfmpegPath(ffmpegPath);
 ffmpeg.setFfprobePath(ffprobePath);
+
 const jwt = require('jsonwebtoken');// ── fMP4 box helpers ──────────────────────────────────────────────────────────
 const _u32 = (buf, off) => buf.readUInt32BE(off);
 const _t4  = (buf, off) => buf.slice(off, off + 4).toString('ascii');
@@ -191,6 +192,7 @@ exports.mergeChunks = async (req, res, next) => {
     
     await new Promise((resolve, reject) => {
       ffmpeg(finalPath)
+        .setFfmpegPath(ffmpegPath)
         .outputOptions(['-movflags frag_keyframe+empty_moov+default_base_moof', '-c copy'])
         .output(processedPath)
         .on('end', resolve)
@@ -203,7 +205,9 @@ exports.mergeChunks = async (req, res, next) => {
 
     // Get metadata from the processed file
     const metadata = await new Promise((resolve, reject) => {
-      ffmpeg.ffprobe(processedPath, (err, data) => {
+      ffmpeg(processedPath)
+        .setFfprobePath(ffprobePath)
+        .ffprobe((err, data) => {
         if (err) {
           console.warn('FFprobe error or missing ffmpeg. Falling back to default values for dummy files:', err.message);
           resolve({ format: { duration: 0, size: 0 } });
