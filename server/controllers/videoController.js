@@ -3,9 +3,11 @@ const Course = require('../models/Course');
 const fs = require('fs');
 const path = require('path');
 const ffmpeg = require('fluent-ffmpeg');
-const jwt = require('jsonwebtoken');
-
-// ── fMP4 box helpers ──────────────────────────────────────────────────────────
+const ffmpegPath = require('ffmpeg-static');
+const ffprobePath = require('ffprobe-static').path;
+ffmpeg.setFfmpegPath(ffmpegPath);
+ffmpeg.setFfprobePath(ffprobePath);
+const jwt = require('jsonwebtoken');// ── fMP4 box helpers ──────────────────────────────────────────────────────────
 const _u32 = (buf, off) => buf.readUInt32BE(off);
 const _t4  = (buf, off) => buf.slice(off, off + 4).toString('ascii');
 
