@@ -17,5 +17,11 @@
   "bugs": {
     "url": "https://github.com/huypham200104/The-Website-Selling-Courses/issues"
   },
-  "homepage": "https://github.com/huypham200104/The-Website-Selling-Courses#readme"
+  "homepage": "https://github.com/huypham200104/The-Website-Selling-Courses#readme",
+  "dependencies": {
+    "express": "^5.2.1",
+    "express-session": "^1.19.0",
+    "passport": "^0.7.0",
+    "passport-google-oauth20": "^2.0.0"
+  }
 }

@@ -117,6 +117,11 @@ export const orderService = {
     const response = await api.put(`/orders/${id}`, { status });
     return response.data;
   },
+
+  create: async (orderData) => {
+    const response = await api.post('/orders', orderData);
+    return response.data;
+  },
 };
 
 // Stats Service (for dashboard)

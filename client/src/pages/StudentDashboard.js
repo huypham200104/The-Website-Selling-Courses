@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { courseService } from '../services/apiService';
+import { courseService, orderService } from '../services/apiService';
 import './StudentDashboard.css';
 
 function StudentDashboard() {
@@ -9,28 +9,35 @@ function StudentDashboard() {
   const navigate = useNavigate();
   const [courses, setCourses] = useState([]);
   const [myCourses, setMyCourses] = useState([]);
+  const [myOrders, setMyOrders] = useState([]);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState('all'); // 'all' or 'my-courses'
 
   useEffect(() => {
     fetchCourses();
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const fetchCourses = async () => {
     try {
-      const response = await courseService.getAll();
-      const allCourses = response.data || [];
-      
+      const [coursesRes, ordersRes] = await Promise.all([
+        courseService.getAll(),
+        orderService.getAll()
+      ]);
+
+      const allCourses = coursesRes.data || [];
+      const allOrders = ordersRes.data || [];
+
       setCourses(allCourses);
-      
-      // Filter courses student has purchased
+      setMyOrders(allOrders);
+
+      // Filter courses student has purchased (completed orders)
       const purchased = allCourses.filter(course =>
         user?.purchasedCourses?.includes(course._id)
       );
       setMyCourses(purchased);
     } catch (error) {
-      console.error('Error fetching courses:', error);
+      console.error('Error fetching data:', error);
     } finally {
       setLoading(false);
     }
@@ -49,12 +56,18 @@ function StudentDashboard() {
   };
 
   const handleEnroll = async (courseId) => {
+    if (!window.confirm('Bạn muốn đăng ký khóa học này? Yêu cầu sẽ được gửi tới Admin để duyệt.')) return;
+
     try {
-      await courseService.enroll(courseId);
-      alert('Đăng ký khóa học thành công!');
+      await orderService.create({
+        courseId,
+        paymentMethod: 'Chuyển khoản / Tiền mặt'
+      });
+      alert('Yêu cầu đăng ký đã được gửi! Vui lòng chờ Admin duyệt hóa đơn.');
       fetchCourses();
     } catch (error) {
-      alert('Lỗi khi đăng ký khóa học');
+      const msg = error.response?.data?.error || 'Lỗi khi đăng ký khóa học';
+      alert(msg);
     }
   };
 
@@ -103,7 +116,7 @@ function StudentDashboard() {
             <div className="courses-grid">
               {courses.map((course) => {
                 const isPurchased = myCourses.some(c => c._id === course._id);
-                
+
                 return (
                   <div key={course._id} className="course-card">
                     <img src={course.thumbnail} alt={course.title} />
@@ -118,9 +131,11 @@ function StudentDashboard() {
                       <div className="course-footer">
                         <span className="price">{formatCurrency(course.price)}</span>
                         {isPurchased ? (
-                          <button className="btn-enrolled" disabled>✅ Đã đăng ký</button>
+                          <button className="btn-enrolled" disabled>✅ Đã sở hữu</button>
+                        ) : myOrders.some(o => o.courseId?._id === course._id && o.status === 'pending') ? (
+                          <button className="btn-pending" disabled>⏳ Chờ duyệt</button>
                         ) : (
-                          <button 
+                          <button
                             className="btn-enroll"
                             onClick={() => handleEnroll(course._id)}
                           >

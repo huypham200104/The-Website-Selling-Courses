@@ -9,9 +9,8 @@ require('dotenv').config();
 const connectDB = require('./config/db');
 
 const session = require("express-session");
-const GoogleStrategy = require("passport-google-oauth20").Strategy;
-
 const app = express();
+
 
 
 
@@ -47,28 +46,13 @@ app.use(passport.session());
 // Passport config
 require('./config/passport')(passport);
 
-passport.use(
-  new GoogleStrategy(
-    {
-      clientID: process.env.GOOGLE_CLIENT_ID,
-      clientSecret: process.env.GOOGLE_CLIENT_SECRET,
-      callbackURL: "http://localhost:3000/auth/google/callback",
-    },
-    (accessToken, refreshToken, profile, done) => {
-      done(null, profile);
-    }
-  )
-);
-
-passport.serializeUser((user, done) => done(null, user));
-passport.deserializeUser((obj, done) => done(null, obj));
-
 // Database connection
 connectDB().then(() => {
   console.log('📊 Database ready');
 }).catch((err) => {
   console.error('❌ Database connection failed:', err.message);
 });
+
 
 // Routes
 app.use('/uploads', express.static('uploads'));
@@ -82,7 +66,7 @@ app.use('/api/users', require('./routes/users'));
 
 // Health check
 app.get('/api/health', (req, res) => {
-  res.json({ 
+  res.json({
     success: true,
     message: 'Server is running',
     timestamp: new Date().toISOString()

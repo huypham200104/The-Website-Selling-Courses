@@ -210,6 +210,17 @@
   cursor: not-allowed;
 }
 
+.btn-pending {
+  padding: 10px 20px;
+  background: #fef9e7;
+  color: #f39c12;
+  border: 1px solid #f39c12;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: not-allowed;
+}
+
 .btn-continue {
   width: 100%;
   padding: 12px;

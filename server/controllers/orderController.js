@@ -78,7 +78,7 @@ exports.getOrders = async (req, res, next) => {
         if (mongoose.Types.ObjectId.isValid(search) && search.length >= 6) {
           try {
             searchConditions.push({ _id: new mongoose.Types.ObjectId(search) });
-          } catch (_) {}
+          } catch (_) { }
         }
         query.$and = (query.$and || []).concat([{ $or: searchConditions }]);
       }

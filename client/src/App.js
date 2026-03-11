@@ -30,7 +30,7 @@ function AppRoutes() {
     <Routes>
       <Route path="/login" element={<Login />} />
       <Route path="/auth/success" element={<AuthSuccess />} />
-      
+
       {/* Admin Routes */}
       <Route
         path="/dashboard"

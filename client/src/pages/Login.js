@@ -48,7 +48,7 @@ function Login() {
   return (
     <div className="login-container">
       <div className="login-box">
-        <h1>🎓 Admin Dashboard</h1>
+        <h1>🎓 Login</h1>
         <p className="subtitle">Course Platform Management</p>
 
         {error && <div className="error-message">{error}</div>}
