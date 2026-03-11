@@ -25,27 +25,45 @@ function _walkBoxes(buf, start, end, cb) {
 
 function _parseMovieMeta(moovBuf) {
   let videoTrackId = 1, videoTimescale = 30000;
+  let videoCodec = null, audioCodec = null, hasAudio = false;
   _walkBoxes(moovBuf, 8, moovBuf.length, (type, trakOff, trakSize) => {
     if (type !== 'trak') return;
-    let isVideo = false, trackId = 0, timescale = 0;
+    let isVideo = false, isAudio = false, trackId = 0, timescale = 0, trackCodec = null;
     _walkBoxes(moovBuf, trakOff + 8, trakOff + trakSize, (t2, s2, sz2) => {
       if (t2 === 'tkhd') {
         const v = moovBuf[s2 + 8];
         trackId = v === 1 ? _u32(moovBuf, s2 + 28) : _u32(moovBuf, s2 + 20);
       }
       if (t2 === 'mdia') {
-        _walkBoxes(moovBuf, s2 + 8, s2 + sz2, (t3, s3) => {
-          if (t3 === 'hdlr' && _t4(moovBuf, s3 + 16) === 'vide') isVideo = true;
+        _walkBoxes(moovBuf, s2 + 8, s2 + sz2, (t3, s3, sz3) => {
+          if (t3 === 'hdlr') {
+            const handler = _t4(moovBuf, s3 + 16);
+            if (handler === 'vide') isVideo = true;
+            if (handler === 'soun') isAudio = true;
+          }
           if (t3 === 'mdhd') {
             const v = moovBuf[s3 + 8];
             timescale = v === 1 ? _u32(moovBuf, s3 + 28) : _u32(moovBuf, s3 + 20);
           }
+          if (t3 === 'minf') {
+            _walkBoxes(moovBuf, s3 + 8, s3 + sz3, (t4, s4, sz4) => {
+              if (t4 === 'stbl') {
+                _walkBoxes(moovBuf, s4 + 8, s4 + sz4, (t5, s5) => {
+                  if (t5 === 'stsd') {
+                    // stsd FullBox header = 16 bytes; first entry fourcc at +20
+                    trackCodec = _t4(moovBuf, s5 + 20).trim().toLowerCase();
+                  }
+                });
+              }
+            });
+          }
         });
       }
     });
-    if (isVideo && timescale > 0) { videoTrackId = trackId; videoTimescale = timescale; }
+    if (isVideo && timescale > 0) { videoTrackId = trackId; videoTimescale = timescale; if (trackCodec) videoCodec = trackCodec; }
+    if (isAudio) { hasAudio = true; if (trackCodec) audioCodec = trackCodec; }
   });
-  return { videoTrackId, videoTimescale };
+  return { videoTrackId, videoTimescale, videoCodec, audioCodec, hasAudio };
 }
 
 function _parseMoofDecodeTime(moofBuf, videoTrackId) {
@@ -66,11 +84,12 @@ function _parseMoofDecodeTime(moofBuf, videoTrackId) {
   return decodeTime;
 }
 
-function _buildSeekTable(filePath) {
+function _buildFileMeta(filePath) {
   const fd = fs.openSync(filePath, 'r');
   const { size: fileSize } = fs.fstatSync(fd);
   const hdr = Buffer.alloc(8);
   let videoTrackId = 1, videoTimescale = 30000, fileOffset = 0;
+  let videoCodec = null, audioCodec = null, hasAudio = false;
   const table = [];
   while (fileOffset + 8 <= fileSize) {
     if (fs.readSync(fd, hdr, 0, 8, fileOffset) < 8) break;
@@ -80,7 +99,7 @@ function _buildSeekTable(filePath) {
     if (boxType === 'moov') {
       const buf = Buffer.alloc(boxSize);
       fs.readSync(fd, buf, 0, boxSize, fileOffset);
-      ({ videoTrackId, videoTimescale } = _parseMovieMeta(buf));
+      ({ videoTrackId, videoTimescale, videoCodec, audioCodec, hasAudio } = _parseMovieMeta(buf));
     } else if (boxType === 'moof') {
       const buf = Buffer.alloc(boxSize);
       fs.readSync(fd, buf, 0, boxSize, fileOffset);
@@ -90,7 +109,7 @@ function _buildSeekTable(filePath) {
     fileOffset += boxSize;
   }
   fs.closeSync(fd);
-  return table;
+  return { seekTable: table, videoCodec, audioCodec, hasAudio };
 }
 
 // ── In-memory seek-table cache (videoId → { seekTable, initEnd, size }) ──────
@@ -99,13 +118,13 @@ const videoCache = new Map();
 function _getVideoMeta(videoId, filePath) {
   if (videoCache.has(videoId)) return videoCache.get(videoId);
   console.log(`[CACHE] Building seek table for ${videoId} …`);
-  const seekTable = _buildSeekTable(filePath);
+  const { seekTable, videoCodec, audioCodec, hasAudio } = _buildFileMeta(filePath);
   const size = fs.statSync(filePath).size;
   // initEnd = byte before the first moof (ftyp+moov only)
   const initEnd = seekTable.length > 0 ? seekTable[0].b - 1 : size - 1;
-  const meta = { seekTable, initEnd, size };
+  const meta = { seekTable, initEnd, size, videoCodec, audioCodec, hasAudio };
   videoCache.set(videoId, meta);
-  console.log(`[CACHE] Cached ${seekTable.length} fragments for ${videoId}`);
+  console.log(`[CACHE] Cached ${seekTable.length} fragments for ${videoId} codec=${videoCodec}+${audioCodec}`);
   return meta;
 }
 
@@ -231,81 +250,12 @@ exports.mergeChunks = async (req, res, next) => {  let ffmpegCommand = null; // 
     
     console.log(`[MERGE] Processing video with FFmpeg...`);
     console.log(`[MERGE] Input file: ${fileName}`);
-    
-    // 🚀 SMART CODEC DETECTION for faster processing
-    let videoCodec = 'unknown';
-    let audioCodec = 'unknown';
-    
-    try {
-      const probeData = await new Promise((resolve, reject) => {
-        ffmpeg(finalPath)
-          .setFfprobePath(ffprobePath)
-          .ffprobe((err, data) => {
-            if (err) reject(err);
-            else resolve(data);
-          });
-      });
-      
-      const videoStream = probeData.streams.find(s => s.codec_type === 'video');
-      const audioStream = probeData.streams.find(s => s.codec_type === 'audio');
-      
-      if (videoStream) videoCodec = videoStream.codec_name;
-      if (audioStream) audioCodec = audioStream.codec_name;
-      
-      console.log(`[FFMPEG] Detected codecs - Video: ${videoCodec}, Audio: ${audioCodec}`);
-    } catch (err) {
-      console.warn('[FFMPEG] Could not detect codecs, will re-encode:', err.message);
-    }
-    
-    // Determine optimal processing strategy
-    const isH264 = videoCodec === 'h264';
-    const isAAC = audioCodec === 'aac';
-    const canCopyVideo = isH264;
-    const canCopyAudio = isAAC;
-    
-    let outputOptions = [
-      '-movflags frag_keyframe+empty_moov+default_base_moof', // Fragmented MP4
+
+    console.log('[FFMPEG] ⚡ Stream copy mode (no re-encode)');
+    const outputOptions = [
+      '-c copy',
+      '-movflags frag_keyframe+empty_moov+default_base_moof',
     ];
-    
-    if (canCopyVideo && canCopyAudio) {
-      // 🚀 FASTEST: Both codecs correct, just copy streams
-      console.log('[FFMPEG] ⚡ ULTRA FAST MODE: Copying streams (no re-encode needed)');
-      outputOptions.push(
-        '-c:v copy',  // Copy video stream
-        '-c:a copy'   // Copy audio stream
-      );
-    } else if (canCopyVideo) {
-      // 🏃 FAST: Copy video, re-encode audio only
-      console.log('[FFMPEG] ⚡ FAST MODE: Copying video, re-encoding audio');
-      outputOptions.push(
-        '-c:v copy',       // Copy video stream
-        '-c:a aac',        // Re-encode audio to AAC
-        '-b:a 128k'
-      );
-    } else if (canCopyAudio) {
-      // 🏃 FAST: Copy audio, re-encode video only
-      console.log('[FFMPEG] ⚡ FAST MODE: Re-encoding video, copying audio');
-      outputOptions.push(
-        '-c:v libx264',    // Re-encode video to H.264
-        '-preset ultrafast', // Fastest encode
-        '-crf 26',         // Slightly lower quality for speed
-        '-pix_fmt yuv420p',
-        '-threads 0',      // Use all CPU cores
-        '-c:a copy'        // Copy audio stream
-      );
-    } else {
-      // 🐢 SLOW: Re-encode both streams
-      console.log('[FFMPEG] 🐢 FULL RE-ENCODE MODE: Converting both streams');
-      outputOptions.push(
-        '-c:v libx264',    // Re-encode video to H.264
-        '-preset ultrafast', // Fastest encode (was 'fast')
-        '-crf 26',         // Speed-optimized quality (was 23)
-        '-c:a aac',        // Re-encode audio to AAC
-        '-b:a 128k',
-        '-pix_fmt yuv420p',
-        '-threads 0'       // Use all CPU cores
-      );
-    }
     
     await new Promise((resolve, reject) => {
       // Check if already aborted before starting FFmpeg
@@ -498,11 +448,11 @@ exports.streamVideo = async (req, res, next) => {
     }
 
     // Build seek table from file on first access, then serve from cache
-    const { seekTable, initEnd, size: fileSize } = _getVideoMeta(videoId, videoPath);
+    const { seekTable, initEnd, size: fileSize, videoCodec, audioCodec, hasAudio } = _getVideoMeta(videoId, videoPath);
 
     // Return seek table metadata when client requests it (no Range header + ?meta=1)
     if (req.query.meta === '1') {
-      return res.json({ success: true, data: { seekTable, initEnd, fileSize } });
+      return res.json({ success: true, data: { seekTable, initEnd, fileSize, videoCodec, audioCodec, hasAudio } });
     }
 
     const range = req.headers.range;
@@ -568,10 +518,17 @@ exports.getVideo = async (req, res, next) => {
       fileExists
     });
 
+    let fileMeta = {};
+    if (fileExists) {
+      const { seekTable, initEnd, size: fileSize, videoCodec, audioCodec, hasAudio } = _getVideoMeta(String(video._id), videoPath);
+      fileMeta = { seekTable, initEnd, fileSize, videoCodec, audioCodec, hasAudio };
+    }
+
     res.json({
       success: true,
       data: {
         ...video.toObject(),
+        ...fileMeta,
         debug: {
           videoPath,
           fileExists,

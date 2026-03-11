@@ -14,13 +14,21 @@ const REFETCH_THRESHOLD  = 20;               // refetch if < 20s ahead
 // Evict data this far behind the playhead
 const EVICT_BEHIND_SECS  = 30;
 
-const MIME_TYPES = [
-  'video/mp4; codecs="avc1.4D4028, mp4a.40.2"',
-  'video/mp4; codecs="avc1.64002A, mp4a.40.2"',
-  'video/mp4; codecs="avc1.640028, mp4a.40.2"',
-  'video/mp4; codecs="avc1.4D401F, mp4a.40.2"',
-  'video/mp4; codecs="avc1.42E01E, mp4a.40.2"',
-];
+const VIDEO_CODEC_MAP = {
+  'avc1': 'avc1.640028',
+  'av01': 'av01.0.08M.08',
+  'hev1': 'hev1.1.6.L93.B0',
+  'hvc1': 'hvc1.1.6.L93.B0',
+  'vp09': 'vp09.00.31.08',
+};
+const AUDIO_CODEC_MAP = { 'mp4a': 'mp4a.40.2', 'opus': 'opus' };
+
+function resolveMime(videoCodec, audioCodec, hasAudio) {
+  const vc = VIDEO_CODEC_MAP[videoCodec] || 'avc1.640028';
+  if (!hasAudio || !audioCodec) return `video/mp4; codecs="${vc}"`;
+  const ac = AUDIO_CODEC_MAP[audioCodec] || 'mp4a.40.2';
+  return `video/mp4; codecs="${vc}, ${ac}"`;
+}
 
 function VideoPlayer({ videoId, className }) {
   const videoRef = useRef(null);
@@ -50,6 +58,9 @@ function VideoPlayer({ videoId, className }) {
     let duration     = 0;
     let seekTable    = [];  // [{t, b}] keyframe byte offsets from DB
     let initBuf      = null;  // cached ftyp+moov from first fetch
+    let videoCodec   = null;
+    let audioCodec   = null;
+    let hasAudio     = false;
     let seekNeedsInit = false; // true after remove(0,Infinity) — must re-send initBuf
     let fetchedEnd   = -1;
     let isFetching   = false;
@@ -322,8 +333,8 @@ function VideoPlayer({ videoId, className }) {
     // ── sourceopen ────────────────────────────────────────────────────────────
 
     const onSourceOpen = () => {
-      const mime = MIME_TYPES.find(t => MediaSource.isTypeSupported(t));
-      if (!mime) { setError('Codec không được hỗ trợ trong trình duyệt này.'); return; }
+      const mime = resolveMime(videoCodec, audioCodec, hasAudio);
+      if (!MediaSource.isTypeSupported(mime)) { setError('Codec không được hỗ trợ trong trình duyệt này.'); return; }
 
       try { sb = ms.addSourceBuffer(mime); }
       catch (e) { setError(`addSourceBuffer: ${e.message}`); return; }
@@ -360,6 +371,9 @@ function VideoPlayer({ videoId, className }) {
         if (meta.size)      totalSize = meta.size;
         if (Array.isArray(meta.seekTable) && meta.seekTable.length > 0)
           seekTable = meta.seekTable;
+        if (meta.videoCodec) videoCodec = meta.videoCodec;
+        if (meta.audioCodec) audioCodec = meta.audioCodec;
+        if (meta.hasAudio)   hasAudio   = meta.hasAudio;
 
         ms      = new MediaSource();
         blobUrl = URL.createObjectURL(ms);
