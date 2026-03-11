@@ -138,7 +138,39 @@ exports.uploadChunk = async (req, res, next) => {
 // @desc    Merge chunks and create video
 // @route   POST /api/videos/merge-chunks
 // @access  Private
-exports.mergeChunks = async (req, res, next) => {
+exports.mergeChunks = async (req, res, next) => {  let ffmpegCommand = null; // Store FFmpeg command for potential cleanup
+  let finalPath = null;
+  let processedPath = null;
+  let aborted = false;
+
+  // Detect client disconnect/abort
+  req.on('close', () => {
+    if (!res.headersSent) {
+      console.log('[MERGE] ⚠️ Client disconnected, aborting FFmpeg process...');
+      aborted = true;
+      
+      // Kill FFmpeg process if running
+      if (ffmpegCommand) {
+        try {
+          ffmpegCommand.kill('SIGKILL');
+          console.log('[MERGE] ✅ FFmpeg process killed');
+        } catch (err) {
+          console.error('[MERGE] ❌ Error killing FFmpeg:', err.message);
+        }
+      }
+      
+      // Cleanup temp files
+      setTimeout(() => {
+        if (finalPath) {
+          try { fs.unlinkSync(finalPath); } catch (_) {}
+        }
+        if (processedPath) {
+          try { fs.unlinkSync(processedPath); } catch (_) {}
+        }
+        console.log('[MERGE] 🧹 Cleaned up temporary files');
+      }, 100);
+    }
+  });
   try {
     const { fileName, chunks, courseId, title, description, order } = req.body;
     
@@ -165,7 +197,7 @@ exports.mergeChunks = async (req, res, next) => {
       });
     }
 
-    const finalPath = path.join(__dirname, '../uploads/videos', fileName);
+    finalPath = path.join(__dirname, '../uploads/videos', fileName);
     const writeStream = fs.createWriteStream(finalPath);
     
     // Merge chunks
@@ -186,17 +218,139 @@ exports.mergeChunks = async (req, res, next) => {
       writeStream.on('error', reject);
     });
 
-    // Process with ffmpeg: produce fragmented MP4 (required for MSE byte-range streaming)
+    // Process with ffmpeg: convert ALL videos to fragmented MP4 with H.264/AAC
     const processedFileName = `web_${Date.now()}_${fileName}`;
-    const processedPath = path.join(__dirname, '../uploads/videos', processedFileName);
+    processedPath = path.join(__dirname, '../uploads/videos', processedFileName);
+    
+    // Check if client already aborted
+    if (aborted) {
+      console.log('[MERGE] ⚠️ Upload aborted before FFmpeg started, cleaning up...');
+      try { fs.unlinkSync(finalPath); } catch (_) {}
+      return; // Don't send response, client already disconnected
+    }
+    
+    console.log(`[MERGE] Processing video with FFmpeg...`);
+    console.log(`[MERGE] Input file: ${fileName}`);
+    
+    // 🚀 SMART CODEC DETECTION for faster processing
+    let videoCodec = 'unknown';
+    let audioCodec = 'unknown';
+    
+    try {
+      const probeData = await new Promise((resolve, reject) => {
+        ffmpeg(finalPath)
+          .setFfprobePath(ffprobePath)
+          .ffprobe((err, data) => {
+            if (err) reject(err);
+            else resolve(data);
+          });
+      });
+      
+      const videoStream = probeData.streams.find(s => s.codec_type === 'video');
+      const audioStream = probeData.streams.find(s => s.codec_type === 'audio');
+      
+      if (videoStream) videoCodec = videoStream.codec_name;
+      if (audioStream) audioCodec = audioStream.codec_name;
+      
+      console.log(`[FFMPEG] Detected codecs - Video: ${videoCodec}, Audio: ${audioCodec}`);
+    } catch (err) {
+      console.warn('[FFMPEG] Could not detect codecs, will re-encode:', err.message);
+    }
+    
+    // Determine optimal processing strategy
+    const isH264 = videoCodec === 'h264';
+    const isAAC = audioCodec === 'aac';
+    const canCopyVideo = isH264;
+    const canCopyAudio = isAAC;
+    
+    let outputOptions = [
+      '-movflags frag_keyframe+empty_moov+default_base_moof', // Fragmented MP4
+    ];
+    
+    if (canCopyVideo && canCopyAudio) {
+      // 🚀 FASTEST: Both codecs correct, just copy streams
+      console.log('[FFMPEG] ⚡ ULTRA FAST MODE: Copying streams (no re-encode needed)');
+      outputOptions.push(
+        '-c:v copy',  // Copy video stream
+        '-c:a copy'   // Copy audio stream
+      );
+    } else if (canCopyVideo) {
+      // 🏃 FAST: Copy video, re-encode audio only
+      console.log('[FFMPEG] ⚡ FAST MODE: Copying video, re-encoding audio');
+      outputOptions.push(
+        '-c:v copy',       // Copy video stream
+        '-c:a aac',        // Re-encode audio to AAC
+        '-b:a 128k'
+      );
+    } else if (canCopyAudio) {
+      // 🏃 FAST: Copy audio, re-encode video only
+      console.log('[FFMPEG] ⚡ FAST MODE: Re-encoding video, copying audio');
+      outputOptions.push(
+        '-c:v libx264',    // Re-encode video to H.264
+        '-preset ultrafast', // Fastest encode
+        '-crf 26',         // Slightly lower quality for speed
+        '-pix_fmt yuv420p',
+        '-threads 0',      // Use all CPU cores
+        '-c:a copy'        // Copy audio stream
+      );
+    } else {
+      // 🐢 SLOW: Re-encode both streams
+      console.log('[FFMPEG] 🐢 FULL RE-ENCODE MODE: Converting both streams');
+      outputOptions.push(
+        '-c:v libx264',    // Re-encode video to H.264
+        '-preset ultrafast', // Fastest encode (was 'fast')
+        '-crf 26',         // Speed-optimized quality (was 23)
+        '-c:a aac',        // Re-encode audio to AAC
+        '-b:a 128k',
+        '-pix_fmt yuv420p',
+        '-threads 0'       // Use all CPU cores
+      );
+    }
     
     await new Promise((resolve, reject) => {
-      ffmpeg(finalPath)
+      // Check if already aborted before starting FFmpeg
+      if (aborted) {
+        console.log('[FFMPEG] ⚠️ Skipping FFmpeg - client aborted');
+        return reject(new Error('Client aborted'));
+      }
+
+      ffmpegCommand = ffmpeg(finalPath)
         .setFfmpegPath(ffmpegPath)
-        .outputOptions(['-movflags frag_keyframe+empty_moov+default_base_moof', '-c copy'])
+        .outputOptions(outputOptions)
         .output(processedPath)
-        .on('end', resolve)
-        .on('error', reject)
+        .on('start', (cmd) => {
+          console.log('[FFMPEG] Command:', cmd);
+          console.log('[FFMPEG] 💡 To stop: Client can abort request');
+        })
+        .on('progress', (progress) => {
+          // Check abort flag during processing
+          if (aborted) {
+            console.log('[FFMPEG] ⚠️ Aborting FFmpeg due to client disconnect...');
+            ffmpegCommand.kill('SIGKILL');
+            return;
+          }
+          
+          if (progress.percent) {
+            console.log(`[FFMPEG] Processing: ${progress.percent.toFixed(1)}%`);
+          }
+        })
+        .on('end', () => {
+          if (aborted) {
+            console.log('[FFMPEG] ⚠️ FFmpeg finished but client aborted, cleaning up...');
+            try { fs.unlinkSync(processedPath); } catch (_) {}
+            return reject(new Error('Client aborted'));
+          }
+          console.log('[FFMPEG] ✅ Video converted to fragmented MP4 successfully');
+          resolve();
+        })
+        .on('error', (err) => {
+          if (aborted || err.message.includes('SIGKILL')) {
+            console.log('[FFMPEG] ⚠️ FFmpeg killed due to client abort');
+            return reject(new Error('Client aborted'));
+          }
+          console.error('[FFMPEG] ❌ Error:', err.message);
+          reject(err);
+        })
         .run();
     });
 
@@ -234,7 +388,7 @@ exports.mergeChunks = async (req, res, next) => {
       courseId,
       title,
       description,
-      videoUrl: `/uploads/videos/${processedFileName}`,
+      videoUrl: `uploads/videos/${processedFileName}`,
       duration,
       size,
       order: order || 0
@@ -251,6 +405,27 @@ exports.mergeChunks = async (req, res, next) => {
       data: video
     });
   } catch (error) {
+    // Check if error is due to client abort
+    if (error.message === 'Client aborted' || aborted) {
+      console.log('[MERGE] ⚠️ Upload aborted by client, cleaned up successfully');
+      // Don't send response if client already disconnected
+      if (!res.headersSent) {
+        return res.status(499).json({
+          success: false,
+          error: 'Upload cancelled by client'
+        });
+      }
+      return;
+    }
+    
+    // Cleanup on other errors
+    if (finalPath) {
+      try { fs.unlinkSync(finalPath); } catch (_) {}
+    }
+    if (processedPath) {
+      try { fs.unlinkSync(processedPath); } catch (_) {}
+    }
+    
     next(error);
   }
 };
@@ -314,8 +489,11 @@ exports.streamVideo = async (req, res, next) => {
       return res.status(403).json({ success: false, error: 'Access denied. Please enroll in the course first.' });
     }
 
-    const videoPath = path.join(__dirname, '..', video.videoUrl);
+    // Remove leading slash if present to ensure path.join works correctly
+    const cleanVideoUrl = video.videoUrl.startsWith('/') ? video.videoUrl.slice(1) : video.videoUrl;
+    const videoPath = path.join(__dirname, '..', cleanVideoUrl);
     if (!fs.existsSync(videoPath)) {
+      console.log('[STREAM] ❌ Video file not found:', videoPath);
       return res.status(404).json({ success: false, error: 'Video file not found' });
     }
 
@@ -377,9 +555,29 @@ exports.getVideo = async (req, res, next) => {
       });
     }
 
+    // Check if file exists
+    const cleanVideoUrl = video.videoUrl.startsWith('/') ? video.videoUrl.slice(1) : video.videoUrl;
+    const videoPath = path.join(__dirname, '..', cleanVideoUrl);
+    const fileExists = fs.existsSync(videoPath);
+    
+    console.log('[GET VIDEO] Video details:', {
+      id: video._id,
+      videoUrl: video.videoUrl,
+      cleanVideoUrl,
+      videoPath,
+      fileExists
+    });
+
     res.json({
       success: true,
-      data: video
+      data: {
+        ...video.toObject(),
+        debug: {
+          videoPath,
+          fileExists,
+          cleanVideoUrl
+        }
+      }
     });
   } catch (error) {
     next(error);
@@ -391,9 +589,12 @@ exports.getVideo = async (req, res, next) => {
 // @access  Private
 exports.deleteVideo = async (req, res, next) => {
   try {
+    console.log(`[DELETE] Attempting to delete video: ${req.params.id} by user: ${req.user._id}`);
+    
     const video = await Video.findById(req.params.id);
     
     if (!video) {
+      console.log(`[DELETE] ❌ Video not found: ${req.params.id}`);
       return res.status(404).json({
         success: false,
         error: 'Video not found'
@@ -402,7 +603,16 @@ exports.deleteVideo = async (req, res, next) => {
 
     // Check authorization
     const course = await Course.findById(video.courseId);
+    if (!course) {
+      console.log(`[DELETE] ❌ Course not found: ${video.courseId}`);
+      return res.status(404).json({
+        success: false,
+        error: 'Course not found'
+      });
+    }
+
     if (course.instructor.toString() !== req.user._id.toString() && req.user.role !== 'admin') {
+      console.log(`[DELETE] ❌ Unauthorized: User ${req.user._id} not instructor of course ${course._id}`);
       return res.status(403).json({
         success: false,
         error: 'Not authorized to delete this video'
@@ -410,25 +620,39 @@ exports.deleteVideo = async (req, res, next) => {
     }
 
     // Delete video file and evict from cache
-    const videoPath = path.join(__dirname, '..', video.videoUrl);
+    const cleanVideoUrl = video.videoUrl.startsWith('/') ? video.videoUrl.slice(1) : video.videoUrl;
+    const videoPath = path.join(__dirname, '..', cleanVideoUrl);
+    
     if (fs.existsSync(videoPath)) {
       fs.unlinkSync(videoPath);
+      console.log(`[DELETE] ✅ Deleted video file: ${videoPath}`);
+    } else {
+      console.log(`[DELETE] ⚠️ Video file not found on disk: ${videoPath}`);
     }
+    
     videoCache.delete(String(video._id));
+    console.log(`[DELETE] ✅ Evicted from cache: ${video._id}`);
 
     // Remove from course
     await Course.findByIdAndUpdate(video.courseId, {
       $pull: { videos: video._id }
     });
+    console.log(`[DELETE] ✅ Removed video reference from course: ${video.courseId}`);
 
-    // Delete video record
+    // Delete video record from database
     await video.deleteOne();
+    console.log(`[DELETE] ✅ Deleted video record from database: ${video._id}`);
 
     res.json({
       success: true,
-      message: 'Video deleted successfully'
+      message: 'Video deleted successfully',
+      data: {
+        videoId: video._id,
+        title: video.title
+      }
     });
   } catch (error) {
+    console.error(`[DELETE] 💥 Error deleting video:`, error);
     next(error);
   }
 };

@@ -3,7 +3,6 @@ import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-d
 import { AuthProvider, useAuth } from './context/AuthContext';
 import Login from './pages/Login';
 import Dashboard from './pages/Dashboard';
-import InstructorDashboard from './pages/InstructorDashboard';
 import StudentDashboard from './pages/StudentDashboard';
 import Courses from './pages/Courses';
 import Orders from './pages/Orders';
@@ -13,6 +12,7 @@ import CreateCourse from './pages/CreateCourse';
 import EditCourse from './pages/EditCourse';
 import InstructorCourseDetail from './pages/InstructorCourseDetail';
 import InstructorStudents from './pages/InstructorStudents';
+import InstructorProfile from './pages/InstructorProfile';
 import CourseLearn from './pages/CourseLearn';
 import PrivateRoute from './components/PrivateRoute';
 import './App.css';
@@ -64,14 +64,6 @@ function AppRoutes() {
 
       {/* Instructor Routes */}
       <Route
-        path="/instructor/dashboard"
-        element={
-          <PrivateRoute allowedRoles={['instructor']}>
-            <InstructorDashboard />
-          </PrivateRoute>
-        }
-      />
-      <Route
         path="/instructor/courses"
         element={
           <PrivateRoute allowedRoles={['instructor']}>
@@ -111,6 +103,14 @@ function AppRoutes() {
           </PrivateRoute>
         }
       />
+      <Route
+        path="/instructor/profile"
+        element={
+          <PrivateRoute allowedRoles={['instructor']}>
+            <InstructorProfile />
+          </PrivateRoute>
+        }
+      />
 
       {/* Student Routes */}
       <Route
@@ -138,7 +138,7 @@ function AppRoutes() {
             user.role === 'admin' ? (
               <Navigate to="/dashboard" replace />
             ) : user.role === 'instructor' ? (
-              <Navigate to="/instructor/dashboard" replace />
+              <Navigate to="/instructor/courses" replace />
             ) : (
               <Navigate to="/student/dashboard" replace />
             )

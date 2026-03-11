@@ -196,7 +196,20 @@ function VideoPlayer({ videoId, className }) {
           try { sb.remove(0, evictTo); return; } catch (_) { pendingBuf = null; }
         }
 
-        sb.appendBuffer(buf);
+        try {
+          sb.appendBuffer(buf);
+        } catch (appendErr) {
+          console.error('SourceBuffer appendBuffer error:', appendErr);
+          if (!destroyed) {
+            if (appendErr.message.includes('codec') || appendErr.name === 'QuotaExceededError') {
+              setError('⚠️ Video không tương thích. Vui lòng liên hệ giảng viên để upload lại video ở định dạng hỗ trợ (H.264/MP4).');
+            } else {
+              setError(`Lỗi xử lý video: ${appendErr.message}`);
+            }
+          }
+          isFetching = false;
+          return;
+        }
       } catch (err) {
         if (err.name === 'AbortError') { if (myGen === fetchGen) isFetching = false; return; }
         if (!destroyed) setError(`Lỗi mạng: ${err.message}`);
@@ -220,7 +233,19 @@ function VideoPlayer({ videoId, className }) {
         const buf = pendingBuf;
         pendingBuf = null;
         if (ms.readyState === 'open' && !sb.updating) {
-          sb.appendBuffer(buf);
+          try {
+            sb.appendBuffer(buf);
+          } catch (appendErr) {
+            console.error('SourceBuffer appendBuffer error (pendingBuf):', appendErr);
+            if (!destroyed) {
+              if (appendErr.message.includes('codec') || appendErr.name === 'QuotaExceededError') {
+                setError('⚠️ Video không tương thích. Vui lòng liên hệ giảng viên để upload lại video ở định dạng hỗ trợ (H.264/MP4).');
+              } else {
+                setError(`Lỗi xử lý video: ${appendErr.message}`);
+              }
+            }
+            isFetching = false;
+          }
           return;
         }
         isFetching = false;
@@ -372,10 +397,16 @@ function VideoPlayer({ videoId, className }) {
       {error && (
         <div style={{
           position: 'absolute', inset: 0, display: 'flex', alignItems: 'center',
-          justifyContent: 'center', background: 'rgba(0,0,0,0.75)', color: '#f88',
-          padding: 20, fontSize: 14, textAlign: 'center', zIndex: 10,
+          justifyContent: 'center', background: 'rgba(0,0,0,0.85)', color: '#fff',
+          padding: '30px', fontSize: '16px', textAlign: 'center', zIndex: 10,
+          flexDirection: 'column', gap: '15px', borderRadius: '8px'
         }}>
-          {error}
+          <div style={{ fontSize: '48px' }}>⚠️</div>
+          <div style={{ fontWeight: 'bold', fontSize: '18px' }}>Lỗi phát video</div>
+          <div style={{ color: '#ffaaaa' }}>{error}</div>
+          <div style={{ fontSize: '14px', color: '#ccc', marginTop: '10px' }}>
+            Nếu vấn đề tiếp diễn, vui lòng liên hệ giảng viên.
+          </div>
         </div>
       )}
       {loading && !error && (
@@ -392,6 +423,8 @@ function VideoPlayer({ videoId, className }) {
         controls
         className={className}
         style={{ width: '100%', display: 'block', background: '#000' }}
+        controlsList="nodownload noremoteplayback"
+        disablePictureInPicture
       />
     </div>
   );

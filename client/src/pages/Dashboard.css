@@ -170,9 +170,42 @@ tbody tr:hover {
   color: #721c24;
 }
 
+@media (max-width: 992px) {
+  .dashboard-header h1 {
+    font-size: 28px;
+  }
+
+  .stats-grid {
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 15px;
+  }
+
+  .stat-icon {
+    font-size: 35px;
+    width: 60px;
+    height: 60px;
+  }
+
+  .stat-content h3 {
+    font-size: 24px;
+  }
+}
+
 @media (max-width: 768px) {
+  .dashboard-header h1 {
+    font-size: 24px;
+  }
+
   .stats-grid {
     grid-template-columns: 1fr;
+  }
+
+  .stat-card {
+    padding: 20px;
+  }
+
+  .dashboard-section {
+    padding: 20px;
   }
 
   table {
@@ -181,5 +214,34 @@ tbody tr:hover {
 
   th, td {
     padding: 8px;
+  }
+}
+
+@media (max-width: 480px) {
+  .dashboard-header h1 {
+    font-size: 20px;
+  }
+
+  .stat-card {
+    flex-direction: column;
+    text-align: center;
+  }
+
+  .stat-icon {
+    width: 100%;
+    padding: 20px;
+  }
+
+  .dashboard-section h2 {
+    font-size: 18px;
+  }
+
+  .table-container {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  table {
+    min-width: 500px;
   }
 }

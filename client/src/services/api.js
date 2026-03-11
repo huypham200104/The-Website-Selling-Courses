@@ -41,6 +41,7 @@ export const authAPI = {
   login: (email, password) => api.post('/auth/login', { email, password }),
   getMe: () => api.get('/auth/me'),
   logout: () => api.post('/auth/logout'),
+  updateProfile: (data) => api.put('/auth/profile', data),
 };
 
 // User APIs
@@ -65,10 +66,11 @@ export const courseAPI = {
 // Video APIs
 export const videoAPI = {
   getOne: (id) => api.get(`/videos/${id}`),
-  uploadChunk: (formData) => api.post('/videos/upload-chunk', formData, {
+  uploadChunk: (formData, signal) => api.post('/videos/upload-chunk', formData, {
     headers: { 'Content-Type': 'multipart/form-data' },
+    signal,
   }),
-  mergeChunks: (data) => api.post('/videos/merge-chunks', data),
+  mergeChunks: (data, signal) => api.post('/videos/merge-chunks', data, { signal }),
   delete: (id) => api.delete(`/videos/${id}`),
   getStreamUrl: (id) => {
     const token = localStorage.getItem('token');

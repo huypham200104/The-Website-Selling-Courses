@@ -166,6 +166,32 @@
   display: block;
 }
 
+/* Chặn download video của student */
+.video-player::-webkit-media-controls-download-button {
+  display: none !important;
+}
+
+.video-player::-webkit-media-controls-enclosure {
+  overflow: hidden;
+}
+
+.video-player::-internal-media-controls-download-button {
+  display: none !important;
+}
+
+/* Chặn download video của student */
+.video-player::-webkit-media-controls-download-button {
+  display: none;
+}
+
+.video-player::-webkit-media-controls-enclosure {
+  overflow: hidden;
+}
+
+.video-player::-internal-media-controls-download-button {
+  display: none;
+}
+
 .video-details {
   margin-top: 20px;
   background: white;

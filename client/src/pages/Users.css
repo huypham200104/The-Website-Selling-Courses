@@ -199,6 +199,82 @@
   color: #7f8c8d;
 }
 
+@media (max-width: 992px) {
+  .page-header h1 {
+    font-size: 28px;
+  }
+
+  .users-controls {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .search-box {
+    max-width: 100%;
+  }
+
+  .users-grid {
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  }
+}
+
+@media (max-width: 768px) {
+  .page-header h1 {
+    font-size: 24px;
+  }
+
+  .filter-buttons {
+    width: 100%;
+    flex-wrap: wrap;
+  }
+
+  .filter-btn {
+    flex: 1;
+    min-width: 100px;
+  }
+
+  .users-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .user-card {
+    padding: 20px;
+  }
+
+  .user-actions {
+    position: static;
+    margin-top: 15px;
+    justify-content: flex-end;
+  }
+}
+
+@media (max-width: 480px) {
+  .page-header h1 {
+    font-size: 20px;
+  }
+
+  .user-card {
+    flex-direction: column;
+    text-align: center;
+    padding: 15px;
+  }
+
+  .user-avatar {
+    width: 60px;
+    height: 60px;
+    margin: 0 auto;
+  }
+
+  .user-actions {
+    justify-content: center;
+    width: 100%;
+  }
+
+  .user-actions button {
+    flex: 1;
+  }
+}
+
 @media (max-width: 768px) {
   .users-controls {
     flex-direction: column;

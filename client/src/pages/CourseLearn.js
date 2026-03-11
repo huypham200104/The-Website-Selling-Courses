@@ -12,6 +12,24 @@ function CourseLearn() {
   const [selectedVideo, setSelectedVideo] = useState(null); // null = show course info page
 
   useEffect(() => {
+    // Chặn các phím tắt save (nhưng cho phép chuột phải)
+    const handleKeyDown = (e) => {
+      // Chặn Ctrl+S (Save) để tránh download trang
+      if (e.ctrlKey && e.key === 's') {
+        e.preventDefault();
+        return false;
+      }
+    };
+
+    document.addEventListener('keydown', handleKeyDown);
+
+    // Cleanup
+    return () => {
+      document.removeEventListener('keydown', handleKeyDown);
+    };
+  }, []);
+
+  useEffect(() => {
     const fetchCourse = async () => {
       try {
         const response = await courseService.getOne(courseId);

@@ -46,8 +46,10 @@ app.use(cors({
   credentials: true,
   exposedHeaders: ['Content-Range', 'Accept-Ranges', 'Content-Length', 'Content-Type'],
 }));
-app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
+
+// 🚀 Increased limits for large video chunks (up to 50MB per chunk)
+app.use(express.json({ limit: '100mb' }));
+app.use(express.urlencoded({ limit: '100mb', extended: true }));
 app.use(limiter);
 app.use(passport.initialize());
 

@@ -29,7 +29,7 @@ exports.getCourse = async (req, res, next) => {
   try {
     const course = await Course.findById(req.params.id)
       .populate('instructor', 'name avatar email')
-      .populate('videos', 'title description duration order thumbnail');
+      .populate('videos');
     
     if (!course) {
       return res.status(404).json({

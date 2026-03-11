@@ -2,7 +2,7 @@ const express = require('express');
 const router = express.Router();
 const passport = require('passport');
 const jwt = require('jsonwebtoken');
-const { login, getMe, logout } = require('../controllers/authController');
+const { login, getMe, logout, updateProfile } = require('../controllers/authController');
 const auth = require('../middleware/auth');
 
 // @route   POST /api/auth/login
@@ -35,6 +35,10 @@ router.get(
 // @route   GET /api/auth/me
 // @desc    Get current user
 router.get('/me', auth, getMe);
+
+// @route   PUT /api/auth/profile
+// @desc    Update user profile
+router.put('/profile', auth, updateProfile);
 
 // @route   POST /api/auth/logout
 // @desc    Logout user
