@@ -52,13 +52,26 @@
     const CHUNK = 8 * 1024 * 1024;   // 8 MB — matches VideoPlayer.js
     const AHEAD = 60;
     const EVICT = 30;
-    const MIME_TYPES = [
-      'video/mp4; codecs="avc1.4D4028, mp4a.40.2"',
-      'video/mp4; codecs="avc1.64002A, mp4a.40.2"',
-      'video/mp4; codecs="avc1.640028, mp4a.40.2"',
-      'video/mp4; codecs="avc1.4D401F, mp4a.40.2"',
-      'video/mp4; codecs="avc1.42E01E, mp4a.40.2"',
-    ];
+    const VIDEO_CODEC_MAP = {
+      'avc1': 'avc1.640028', 'avc3': 'avc1.640028',
+      'hev1': 'hev1.1.6.L93.B0', 'hvc1': 'hev1.1.6.L93.B0',
+      'av01': 'av01.0.08M.08',
+      'vp09': 'vp09.00.31.08', 'vp08': 'vp8',
+    };
+    const AUDIO_CODEC_MAP = { 'mp4a': 'mp4a.40.2', 'opus': 'opus', 'flac': 'flac', 'ac-3': 'ac-3', 'ec-3': 'ec-3' };
+    const CONTAINER_MAP   = { 'vp09': 'video/webm', 'vp08': 'video/webm' };
+    function resolveMime(videoCodec, audioCodec, hasAudio) {
+      const vc = (videoCodec || '').toLowerCase();
+      const ac = (audioCodec || '').toLowerCase();
+      const ctr = CONTAINER_MAP[vc] || 'video/mp4';
+      const vStr = VIDEO_CODEC_MAP[vc];
+      const aStr = hasAudio ? AUDIO_CODEC_MAP[ac] : null;
+      const cands = [];
+      if (vStr && aStr) cands.push(`${ctr}; codecs="${vStr}, ${aStr}"`);
+      if (vStr)         cands.push(`${ctr}; codecs="${vStr}"`);
+      cands.push('video/mp4; codecs="avc1.640028, mp4a.40.2"', 'video/mp4; codecs="avc1.640028"', 'video/mp4');
+      return cands.find(t => MediaSource.isTypeSupported(t)) || null;
+    }
 
     // ── log helpers ──────────────────────────────────────────────────────────
     function log(msg, cls = 'info') {
@@ -297,7 +310,7 @@
     // ── sourceopen ───────────────────────────────────────────────────────────
     function onSourceOpen() {
       pass('sourceopen fired');
-      const mime = MIME_TYPES.find(t => MediaSource.isTypeSupported(t));
+      const mime = resolveMime(meta?.videoCodec, meta?.audioCodec, meta?.hasAudio);
       log(`Codec: ${mime ?? 'NONE'}`, mime ? 'ok' : 'err');
       if (!mime) { fail('Codec', 'no supported MIME type found'); return; }
 
@@ -357,7 +370,7 @@
       pass(`Metadata loaded: "${meta.title}"`);
       info(`  duration : ${meta.duration}s`);
       info(`  size     : ${(meta.size/1024/1024).toFixed(1)} MB`);
-      totalSize = meta.size || 0;
+      totalSize = meta.size || meta.fileSize || 0;
 
       if (Array.isArray(meta.seekTable) && meta.seekTable.length > 0) {
         seekTable = meta.seekTable;
@@ -366,7 +379,7 @@
         info(`  last : t=${seekTable[seekTable.length-1].t}s  b=${seekTable[seekTable.length-1].b}`);
         renderSeekButtons();
       } else {
-        fail('seekTable', 'empty or missing — run gen-seek-table.js');
+        fail('seekTable', 'empty or missing — check server cache');
       }
       return true;
     }
@@ -413,7 +426,7 @@
       pass('T1: MSE supported');
 
       // T2: codec support
-      const mime = MIME_TYPES.find(t => MediaSource.isTypeSupported(t));
+      const mime = resolveMime(meta?.videoCodec, meta?.audioCodec, meta?.hasAudio);
       if (!mime) { fail('T2 Codec', 'no supported MIME'); return; }
       pass(`T2: Codec supported — ${mime}`);
 

@@ -14,13 +14,42 @@ const REFETCH_THRESHOLD  = 20;               // refetch if < 20s ahead
 // Evict data this far behind the playhead
 const EVICT_BEHIND_SECS  = 30;
 
-const MIME_TYPES = [
-  'video/mp4; codecs="avc1.4D4028, mp4a.40.2"',
-  'video/mp4; codecs="avc1.64002A, mp4a.40.2"',
-  'video/mp4; codecs="avc1.640028, mp4a.40.2"',
-  'video/mp4; codecs="avc1.4D401F, mp4a.40.2"',
-  'video/mp4; codecs="avc1.42E01E, mp4a.40.2"',
-];
+const VIDEO_CODEC_MAP = {
+  'avc1': 'avc1.640028',
+  'avc3': 'avc1.640028',
+  'hev1': 'hev1.1.6.L93.B0',
+  'hvc1': 'hev1.1.6.L93.B0',
+  'av01': 'av01.0.08M.08',
+  'vp09': 'vp09.00.31.08',
+  'vp08': 'vp8',
+};
+const AUDIO_CODEC_MAP = {
+  'mp4a': 'mp4a.40.2',
+  'opus': 'opus',
+  'flac': 'flac',
+  'ac-3': 'ac-3',
+  'ec-3': 'ec-3',
+};
+const CONTAINER_MAP = {
+  'vp09': 'video/webm',
+  'vp08': 'video/webm',
+};
+
+function resolveMime(videoCodec, audioCodec, hasAudio) {
+  const vc = (videoCodec || '').toLowerCase();
+  const ac = (audioCodec || '').toLowerCase();
+  const container = CONTAINER_MAP[vc] || 'video/mp4';
+  const vStr = VIDEO_CODEC_MAP[vc];
+  const aStr = hasAudio ? AUDIO_CODEC_MAP[ac] : null;
+  const candidates = [];
+  if (vStr && aStr) candidates.push(`${container}; codecs="${vStr}, ${aStr}"`);
+  if (vStr)         candidates.push(`${container}; codecs="${vStr}"`);
+  // Generic fallbacks in case the detected codec isn't in the map
+  candidates.push('video/mp4; codecs="avc1.640028, mp4a.40.2"');
+  candidates.push('video/mp4; codecs="avc1.640028"');
+  candidates.push('video/mp4');
+  return candidates.find(t => MediaSource.isTypeSupported(t)) || null;
+}
 
 function VideoPlayer({ videoId, className }) {
   const videoRef = useRef(null);
@@ -48,7 +77,10 @@ function VideoPlayer({ videoId, className }) {
     let sb           = null;
     let totalSize    = 0;
     let duration     = 0;
-    let seekTable    = [];  // [{t, b}] keyframe byte offsets from DB
+    let seekTable    = [];  // [{t, b}] keyframe byte offsets from file
+    let videoCodec   = null;
+    let audioCodec   = null;
+    let hasAudio     = false;
     let initBuf      = null;  // cached ftyp+moov from first fetch
     let seekNeedsInit = false; // true after remove(0,Infinity) — must re-send initBuf
     let fetchedEnd   = -1;
@@ -297,7 +329,7 @@ function VideoPlayer({ videoId, className }) {
     // ── sourceopen ────────────────────────────────────────────────────────────
 
     const onSourceOpen = () => {
-      const mime = MIME_TYPES.find(t => MediaSource.isTypeSupported(t));
+      const mime = resolveMime(videoCodec, audioCodec, hasAudio);
       if (!mime) { setError('Codec không được hỗ trợ trong trình duyệt này.'); return; }
 
       try { sb = ms.addSourceBuffer(mime); }
@@ -332,9 +364,12 @@ function VideoPlayer({ videoId, className }) {
         if (destroyed) return;
         const meta = json.data;
         if (meta.duration)  duration  = meta.duration;
-        if (meta.size)      totalSize = meta.size;
+        if (meta.size || meta.fileSize) totalSize = meta.size || meta.fileSize;
         if (Array.isArray(meta.seekTable) && meta.seekTable.length > 0)
           seekTable = meta.seekTable;
+        if (meta.videoCodec) videoCodec = meta.videoCodec;
+        if (meta.audioCodec) audioCodec = meta.audioCodec;
+        if (meta.hasAudio)   hasAudio   = meta.hasAudio;
 
         ms      = new MediaSource();
         blobUrl = URL.createObjectURL(ms);
