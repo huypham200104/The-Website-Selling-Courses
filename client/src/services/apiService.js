@@ -18,6 +18,21 @@ export const authService = {
     localStorage.removeItem('token');
     return response.data;
   },
+
+  addFavorite: async (courseId) => {
+    const response = await api.post(`/auth/favorites/${courseId}`);
+    return response.data;
+  },
+
+  removeFavorite: async (courseId) => {
+    const response = await api.delete(`/auth/favorites/${courseId}`);
+    return response.data;
+  },
+
+  updateProfile: async (profileData) => {
+    const response = await api.put('/auth/profile', profileData);
+    return response.data;
+  },
 };
 
 // Course Services
@@ -47,8 +62,33 @@ export const courseService = {
     return response.data;
   },
 
+  addQuiz: async (id, quizData) => {
+    const response = await api.post(`/courses/${id}/quizzes`, quizData);
+    return response.data;
+  },
+
+  deleteQuiz: async (id, quizId) => {
+    const response = await api.delete(`/courses/${id}/quizzes/${quizId}`);
+    return response.data;
+  },
+
   enroll: async (courseId) => {
     const response = await api.post(`/courses/${courseId}/enroll`);
+    return response.data;
+  },
+
+  getAdminAll: async () => {
+    const response = await api.get('/courses/admin/all');
+    return response.data;
+  },
+
+  updateStatus: async (courseId, status) => {
+    const response = await api.put(`/courses/${courseId}/status`, { status });
+    return response.data;
+  },
+
+  getStudents: async (id) => {
+    const response = await api.get(`/courses/${id}/students`);
     return response.data;
   },
 };
@@ -94,6 +134,20 @@ export const orderService = {
 
   updateStatus: async (id, status) => {
     const response = await api.put(`/orders/${id}`, { status });
+    return response.data;
+  },
+
+  create: async (courseId, paymentMethod = 'chuyển khoản') => {
+    const response = await api.post('/orders', { courseId, paymentMethod });
+    return response.data;
+  },
+
+  uploadProof: async (orderId, formData) => {
+    const response = await api.put(`/orders/${orderId}/proof`, formData, {
+      headers: {
+        'Content-Type': 'multipart/form-data',
+      },
+    });
     return response.data;
   },
 };

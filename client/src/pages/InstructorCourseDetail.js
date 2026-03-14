@@ -291,6 +291,41 @@ function InstructorCourseDetail() {
     }
   };
 
+  const handleUploadQuizJSON = async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    try {
+      const text = await file.text();
+      const quizData = JSON.parse(text);
+
+      if (!quizData.title || !quizData.questions || !Array.isArray(quizData.questions)) {
+        alert('File JSON không đúng định dạng. Cần có title và mảng questions.');
+        return;
+      }
+
+      await courseService.addQuiz(id, quizData);
+      alert('Đã thêm bài tập trắc nghiệm!');
+      fetchCourseDetails(); // Reload course data
+    } catch (err) {
+      alert('Lỗi: Vui lòng đảm bảo file JSON phải hợp lệ.');
+      console.error(err);
+    }
+    e.target.value = null; // reset
+  };
+
+  const handleDeleteQuiz = async (quizId) => {
+    if (window.confirm('Bạn có chắc chắn muốn xóa bài tập này?')) {
+      try {
+        await courseService.deleteQuiz(id, quizId);
+        fetchCourseDetails();
+      } catch (err) {
+        console.error('Lỗi khi xóa bài tập:', err);
+        alert('Có lỗi xảy ra khi xóa bài tập.');
+      }
+    }
+  };
+
   if (loading) return <Layout><div className="loading">Đang tải...</div></Layout>;
   if (!course) return <Layout><div className="loading">Khóa học không tồn tại</div></Layout>;
 
@@ -440,6 +475,69 @@ function InstructorCourseDetail() {
                 </div>
               )}
             </form>
+          </div>
+
+          <div className="quizzes-section" style={{ marginTop: '30px' }}>
+            <h2>📝 Danh sách Bài tập / Trắc nghiệm ({course.quizzes?.length || 0})</h2>
+            
+            {course.quizzes?.length > 0 ? (
+              <div className="quizzes-list">
+                {course.quizzes.map((quiz, index) => (
+                  <div key={quiz._id || index} className="quiz-item" style={{ 
+                    border: '1px solid #e2e8f0', 
+                    borderRadius: '8px', 
+                    padding: '15px', 
+                    marginBottom: '15px',
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    alignItems: 'center'
+                  }}>
+                    <div>
+                      <h4 style={{ margin: '0 0 5px 0' }}>{quiz.title}</h4>
+                      <p style={{ margin: '0', fontSize: '13px', color: '#64748b' }}>
+                        {quiz.questions?.length} câu hỏi | {quiz.description || 'Không có mô tả'}
+                      </p>
+                    </div>
+                    <button 
+                      className="btn-delete" 
+                      onClick={() => handleDeleteQuiz(quiz._id)}
+                      style={{ padding: '8px 15px', backgroundColor: '#e74c3c', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer' }}
+                    >
+                      🗑️ Xóa bài tập
+                    </button>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <p style={{ color: '#64748b' }}>Chưa có bài tập trắc nghiệm nào.</p>
+            )}
+
+            <div className="upload-quiz-section" style={{ marginTop: '20px', padding: '20px', backgroundColor: '#f8fafc', borderRadius: '8px' }}>
+              <h3 style={{ margin: '0 0 15px 0' }}>⬆️ Tải lên file JSON Trắc nghiệm</h3>
+              <div className="form-group">
+                <input
+                  type="file"
+                  accept=".json"
+                  onChange={handleUploadQuizJSON}
+                />
+                <p style={{ fontSize: '12px', color: '#666', marginTop: '10px' }}>
+                  💡 Format file JSON trắc nghiệm mẫu:<br/>
+                  <pre style={{ background: '#fff', padding: '10px', borderRadius: '4px', marginTop: '5px' }}>
+{`{
+  "title": "Tên bài tập",
+  "description": "Mô tả bài tập",
+  "questions": [
+    {
+      "question": "Câu hỏi 1",
+      "options": ["A", "B", "C", "D"],
+      "correctAnswer": 0
+    }
+  ]
+}`}
+                  </pre>
+                </p>
+              </div>
+            </div>
           </div>
         </div>
       </div>

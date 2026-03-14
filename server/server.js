@@ -63,6 +63,10 @@ connectDB().then(() => {
   console.error('❌ Database connection failed:', err.message);
 });
 
+// Serve static files
+const path = require('path');
+app.use('/uploads/receipts', express.static(path.join(__dirname, 'uploads/receipts')));
+
 // Routes
 app.use('/api/auth', require('./routes/auth'));
 app.use('/api/courses', require('./routes/courses'));
@@ -70,6 +74,7 @@ app.use('/api/videos/:id/stream', streamLimiter);
 app.use('/api/videos', require('./routes/videos'));
 app.use('/api/orders', require('./routes/orders'));
 app.use('/api/users', require('./routes/users'));
+app.use('/api/chat', require('./routes/chat'));
 
 // Health check
 app.get('/api/health', (req, res) => {

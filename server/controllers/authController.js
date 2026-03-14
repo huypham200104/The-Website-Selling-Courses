@@ -85,7 +85,9 @@ exports.login = async (req, res, next) => {
 // @access  Private
 exports.getMe = async (req, res, next) => {
   try {
-    const user = await User.findById(req.user._id).select('-__v');
+    const user = await User.findById(req.user._id)
+      .populate('favorites', 'title price thumbnail instructor rating level description')
+      .select('-__v');
     res.json(user);
   } catch (error) {
     next(error);
@@ -192,3 +194,48 @@ exports.updateProfile = async (req, res, next) => {
     next(error);
   }
 };
+
+// @desc    Add course to favorites
+// @route   POST /api/auth/favorites/:courseId
+// @access  Private
+exports.addFavorite = async (req, res, next) => {
+  try {
+    const { courseId } = req.params;
+    
+    const user = await User.findByIdAndUpdate(
+      req.user._id,
+      { $addToSet: { favorites: courseId } },
+      { new: true }
+    ).populate('favorites', 'title price thumbnail instructor rating level description');
+
+    res.json({
+      success: true,
+      favorites: user.favorites
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// @desc    Remove course from favorites
+// @route   DELETE /api/auth/favorites/:courseId
+// @access  Private
+exports.removeFavorite = async (req, res, next) => {
+  try {
+    const { courseId } = req.params;
+    
+    const user = await User.findByIdAndUpdate(
+      req.user._id,
+      { $pull: { favorites: courseId } },
+      { new: true }
+    ).populate('favorites', 'title price thumbnail instructor rating level description');
+
+    res.json({
+      success: true,
+      favorites: user.favorites
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+

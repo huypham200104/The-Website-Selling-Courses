@@ -42,6 +42,8 @@ export const authAPI = {
   getMe: () => api.get('/auth/me'),
   logout: () => api.post('/auth/logout'),
   updateProfile: (data) => api.put('/auth/profile', data),
+  addFavorite: (courseId) => api.post(`/auth/favorites/${courseId}`),
+  removeFavorite: (courseId) => api.delete(`/auth/favorites/${courseId}`),
 };
 
 // User APIs
@@ -61,6 +63,10 @@ export const courseAPI = {
   update: (id, data) => api.put(`/courses/${id}`, data),
   delete: (id) => api.delete(`/courses/${id}`),
   enroll: (id) => api.post(`/courses/${id}/enroll`),
+  getAdminAll: () => api.get('/courses/admin/all'),
+  updateStatus: (id, status) => api.put(`/courses/${id}/status`, { status }),
+  addQuiz: (id, quizData) => api.post(`/courses/${id}/quizzes`, quizData),
+  deleteQuiz: (id, quizId) => api.delete(`/courses/${id}/quizzes/${quizId}`),
 };
 
 // Video APIs

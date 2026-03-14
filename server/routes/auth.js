@@ -2,7 +2,7 @@ const express = require('express');
 const router = express.Router();
 const passport = require('passport');
 const jwt = require('jsonwebtoken');
-const { login, getMe, logout, updateProfile } = require('../controllers/authController');
+const { login, getMe, logout, updateProfile, addFavorite, removeFavorite } = require('../controllers/authController');
 const auth = require('../middleware/auth');
 
 // @route   POST /api/auth/login
@@ -43,5 +43,13 @@ router.put('/profile', auth, updateProfile);
 // @route   POST /api/auth/logout
 // @desc    Logout user
 router.post('/logout', auth, logout);
+
+// @route   POST /api/auth/favorites/:courseId
+// @desc    Add course to favorites
+router.post('/favorites/:courseId', auth, addFavorite);
+
+// @route   DELETE /api/auth/favorites/:courseId
+// @desc    Remove course from favorites
+router.delete('/favorites/:courseId', auth, removeFavorite);
 
 module.exports = router;

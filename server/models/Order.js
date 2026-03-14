@@ -22,6 +22,9 @@ const orderSchema = new mongoose.Schema({
   },
   paymentMethod: String,
   transactionId: String,
+  paymentProof: {
+    type: String, // Trữ URL/tên file ảnh bill
+  },
   createdAt: {
     type: Date,
     default: Date.now

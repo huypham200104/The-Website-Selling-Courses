@@ -14,6 +14,7 @@ import InstructorCourseDetail from './pages/InstructorCourseDetail';
 import InstructorStudents from './pages/InstructorStudents';
 import InstructorProfile from './pages/InstructorProfile';
 import CourseLearn from './pages/CourseLearn';
+import Checkout from './pages/Checkout';
 import PrivateRoute from './components/PrivateRoute';
 import './App.css';
 
@@ -126,6 +127,14 @@ function AppRoutes() {
         element={
           <PrivateRoute allowedRoles={['student']}>
             <CourseLearn />
+          </PrivateRoute>
+        }
+      />
+      <Route
+        path="/student/checkout/:courseId"
+        element={
+          <PrivateRoute allowedRoles={['student']}>
+            <Checkout />
           </PrivateRoute>
         }
       />
