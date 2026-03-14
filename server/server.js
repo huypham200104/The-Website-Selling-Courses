@@ -14,6 +14,7 @@ ffmpeg.setFfprobePath(ffprobePath);
 
 const connectDB = require('./config/db');
 
+const session = require("express-session");
 const app = express();
 
 // Rate limiting
@@ -47,11 +48,21 @@ app.use(cors({
   exposedHeaders: ['Content-Range', 'Accept-Ranges', 'Content-Length', 'Content-Type'],
 }));
 
-// 🚀 Increased limits for large video chunks (up to 50MB per chunk)
+// Increased limits for large video chunks (up to 100MB per chunk)
 app.use(express.json({ limit: '100mb' }));
 app.use(express.urlencoded({ limit: '100mb', extended: true }));
 app.use(limiter);
+
+app.use(
+  session({
+    secret: "secret",
+    resave: false,
+    saveUninitialized: true,
+  })
+);
+
 app.use(passport.initialize());
+app.use(passport.session());
 
 // Passport config
 require('./config/passport')(passport);
@@ -66,9 +77,11 @@ connectDB().then(() => {
 // Serve static files
 const path = require('path');
 app.use('/uploads/receipts', express.static(path.join(__dirname, 'uploads/receipts')));
+app.use('/uploads', express.static('uploads'));
 
 // Routes
 app.use('/api/auth', require('./routes/auth'));
+app.use('/api/admin', require('./routes/admin'));
 app.use('/api/courses', require('./routes/courses'));
 app.use('/api/videos/:id/stream', streamLimiter);
 app.use('/api/videos', require('./routes/videos'));
@@ -78,7 +91,7 @@ app.use('/api/chat', require('./routes/chat'));
 
 // Health check
 app.get('/api/health', (req, res) => {
-  res.json({ 
+  res.json({
     success: true,
     message: 'Server is running',
     timestamp: new Date().toISOString()
