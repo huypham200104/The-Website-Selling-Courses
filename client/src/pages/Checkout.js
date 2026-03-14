@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { courseService, orderService } from '../services/apiService';
+import StudentHeader from '../components/StudentHeader';
 import Footer from '../components/Footer';
 import './Checkout.css';
 
@@ -102,10 +103,12 @@ function Checkout() {
   const qrUrl = `https://img.vietqr.io/image/${bankName}-${accNo}-compact2.jpg?amount=${amount}&addInfo=${addInfo}&accountName=${encodeURIComponent(accName)}`;
 
   return (
-    <div className="checkout-page">
-      <div className="checkout-container">
-        
-        <div className="checkout-header">
+    <>
+      <StudentHeader />
+      <div className="checkout-page">
+        <div className="checkout-container">
+          
+          <div className="checkout-header">
           <h2>Thanh toán khóa học</h2>
           <p>Hoàn tất thanh toán để bắt đầu học ngay!</p>
         </div>
@@ -182,6 +185,7 @@ function Checkout() {
       </div>
       <Footer />
     </div>
+    </>
   );
 }
 

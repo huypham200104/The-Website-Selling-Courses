@@ -13,7 +13,7 @@ const {
   addQuiz,
   deleteQuiz
 } = require('../controllers/courseController');
-const auth = require('../middleware/auth');
+const { auth } = require('../middleware/auth');
 const roleCheck = require('../middleware/roleCheck');
 
 // Public routes

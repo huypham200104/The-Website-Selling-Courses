@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { courseService, orderService, authService } from '../services/apiService';
+import StudentHeader from '../components/StudentHeader';
 import StudentChatBubble from '../components/StudentChatBubble';
 import Footer from '../components/Footer';
 import './StudentDashboard.css';
@@ -14,7 +15,13 @@ function StudentDashboard() {
   const [pendingCourseIds, setPendingCourseIds] = useState([]);
   const [favorites, setFavorites] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState('all'); // 'all', 'my-courses', 'pending', 'favorites', 'profile'
+  
+  const [searchParams, setSearchParams] = useSearchParams();
+  const activeTab = searchParams.get('tab') || 'all'; // 'all', 'my-courses', 'pending', 'favorites', 'profile'
+  
+  const setActiveTab = (tab) => {
+    setSearchParams({ tab });
+  };
 
   const [profileForm, setProfileForm] = useState({
     name: user?.name || '',
@@ -160,67 +167,8 @@ function StudentDashboard() {
 
   return (
     <div className="student-dashboard">
-      {/* Header */}
-      <header className="student-header">
-        <div className="header-content">
-          <div className="header-left">
-            <div className="logo">
-              <h1>🎓 Course Platform</h1>
-            </div>
-            <nav className="header-nav">
-              <button
-                className={`nav-link ${activeTab === 'all' ? 'active' : ''}`}
-                onClick={() => setActiveTab('all')}
-              >
-                📚 Tất cả khóa học
-              </button>
-              <button
-                className={`nav-link ${activeTab === 'pending' ? 'active' : ''}`}
-                onClick={() => setActiveTab('pending')}
-              >
-                ⏳ Đang chờ duyệt ({pendingCourseIds.length})
-              </button>
-              <button
-                className={`nav-link ${activeTab === 'favorites' ? 'active' : ''}`}
-                onClick={() => setActiveTab('favorites')}
-              >
-                ❤️ Yêu thích ({favorites.length})
-              </button>
-            </nav>
-          </div>
+      <StudentHeader customActiveTab={activeTab} onTabChange={setActiveTab} />
 
-          <div className="header-right">
-            <div className="profile-menu-container">
-              <div className="profile-trigger">
-                <img 
-                  src={user?.avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(user?.name || 'User')}&background=random`} 
-                  alt="avatar" 
-                  className="profile-avatar" 
-                />
-                <span className="user-greeting">{user?.name} ▾</span>
-              </div>
-              
-              <div className="profile-dropdown">
-                <div style={{ padding: '10px 20px', borderBottom: '1px solid #e2e8f0', marginBottom: '8px' }}>
-                  <strong style={{ display: 'block', color: '#2c3e50' }}>{user?.name}</strong>
-                  <span style={{ fontSize: '13px', color: '#64748b' }}>{user?.email}</span>
-                </div>
-                
-                <button className={`dropdown-item ${activeTab === 'my-courses' ? 'active-dropdown' : ''}`} onClick={() => setActiveTab('my-courses')}>
-                  ⭐ Khóa học của tôi ({myCourses.length})
-                </button>
-                <button className={`dropdown-item ${activeTab === 'profile' ? 'active-dropdown' : ''}`} onClick={() => setActiveTab('profile')}>
-                  ⚙️ Thông tin cá nhân
-                </button>
-                <div className="dropdown-divider"></div>
-                <button className="dropdown-item logout" onClick={handleLogout}>
-                  🚪 Đăng xuất
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      </header>
 
       {/* Main Content */}
       <div className="student-content">
@@ -267,23 +215,35 @@ function StudentDashboard() {
                         <span>👨‍🏫 {course.instructor.name}</span>
                         <span>⭐ {course.rating}</span>
                       </div>
-                      <div className="course-footer">
-                        <span className="price">{formatCurrency(course.price)}</span>
-                        {isPurchased ? (
-                          <button className="btn-enrolled" disabled>✅ Đã tham gia</button>
-                        ) : isPending ? (
-                          <button className="btn-pending" onClick={() => navigate(`/student/checkout/${course._id}`)}>
-                            ⏳ Đang chờ duyệt
-                          </button>
-                        ) : (
+                      {isPurchased ? (
+                        <div style={{ marginTop: '15px' }}>
                           <button 
-                            className="btn-enroll"
-                            onClick={() => navigate(`/student/checkout/${course._id}`)}
+                            className="btn-continue" 
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              navigate(`/student/course/${course._id}`);
+                            }}
                           >
-                            Đăng ký ngay
+                            ▶️ Tiếp tục học
                           </button>
-                        )}
-                      </div>
+                        </div>
+                      ) : (
+                        <div className="course-footer">
+                          <span className="price">{formatCurrency(course.price)}</span>
+                          {isPending ? (
+                            <button className="btn-pending" onClick={() => navigate(`/student/checkout/${course._id}`)}>
+                              ⏳ Đang chờ duyệt
+                            </button>
+                          ) : (
+                            <button 
+                              className="btn-enroll"
+                              onClick={() => navigate(`/student/checkout/${course._id}`)}
+                            >
+                              Đăng ký ngay
+                            </button>
+                          )}
+                        </div>
+                      )}
                     </div>
                   </div>
                 );
@@ -353,23 +313,35 @@ function StudentDashboard() {
                           <span>👨‍🏫 {course.instructor.name}</span>
                           <span>⭐ {course.rating}</span>
                         </div>
-                        <div className="course-footer">
-                          <span className="price">{formatCurrency(course.price)}</span>
-                          {isPurchased ? (
-                            <button className="btn-enrolled" disabled>✅ Đã tham gia</button>
-                          ) : isPending ? (
-                            <button className="btn-pending" onClick={() => navigate(`/student/checkout/${course._id}`)}>
-                              ⏳ Đang chờ duyệt
-                            </button>
-                          ) : (
+                        {isPurchased ? (
+                          <div style={{ marginTop: '15px' }}>
                             <button 
-                              className="btn-enroll"
-                              onClick={() => navigate(`/student/checkout/${course._id}`)}
+                              className="btn-continue"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                navigate(`/student/course/${course._id}`);
+                              }}
                             >
-                              Đăng ký ngay
+                              ▶️ Tiếp tục học
                             </button>
-                          )}
-                        </div>
+                          </div>
+                        ) : (
+                          <div className="course-footer">
+                            <span className="price">{formatCurrency(course.price)}</span>
+                            {isPending ? (
+                              <button className="btn-pending" onClick={() => navigate(`/student/checkout/${course._id}`)}>
+                                ⏳ Đang chờ duyệt
+                              </button>
+                            ) : (
+                              <button 
+                                className="btn-enroll"
+                                onClick={() => navigate(`/student/checkout/${course._id}`)}
+                              >
+                                Đăng ký ngay
+                              </button>
+                            )}
+                          </div>
+                        )}
                       </div>
                     </div>
                   );
@@ -407,8 +379,8 @@ function StudentDashboard() {
           )}
 
           {activeTab === 'profile' && (
-            <div className="profile-section" style={{ maxWidth: '600px', margin: '0 auto', background: 'var(--bg-secondary)', padding: '2rem', borderRadius: '12px', boxShadow: '0 4px 6px rgba(0,0,0,0.1)' }}>
-              <h3 style={{ marginBottom: '1.5rem', borderBottom: '1px solid var(--border-color)', paddingBottom: '0.5rem' }}>Cập nhật thông tin</h3>
+            <div className="profile-section" style={{ maxWidth: '600px', margin: '0 auto', background: '#ffffff', padding: '2rem', borderRadius: '12px', boxShadow: '0 4px 6px rgba(0,0,0,0.1)' }}>
+              <h3 style={{ marginBottom: '1.5rem', borderBottom: '1px solid #e2e8f0', paddingBottom: '0.5rem', color: '#1e293b' }}>Cập nhật thông tin</h3>
               {profileMessage.text && (
                 <div style={{ padding: '10px', marginBottom: '15px', borderRadius: '4px', background: profileMessage.type === 'error' ? '#fee2e2' : '#dcfce7', color: profileMessage.type === 'error' ? '#991b1b' : '#166534', border: `1px solid ${profileMessage.type === 'error' ? '#f87171' : '#86efac'}` }}>
                   {profileMessage.text}
@@ -416,75 +388,75 @@ function StudentDashboard() {
               )}
               <form onSubmit={handleProfileSubmit}>
                 <div style={{ marginBottom: '1rem' }}>
-                  <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: '500' }}>Họ và tên</label>
+                  <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: '500', color: '#1e293b' }}>Họ và tên</label>
                   <input
                     type="text"
                     name="name"
                     value={profileForm.name}
                     onChange={handleProfileChange}
                     required
-                    style={{ width: '100%', padding: '0.75rem', borderRadius: '6px', border: '1px solid var(--border-color)', background: 'var(--bg-primary)', color: 'var(--text-primary)' }}
+                    style={{ width: '100%', padding: '0.75rem', borderRadius: '6px', border: '1px solid #cbd5e1', background: '#ffffff', color: '#1e293b' }}
                   />
                 </div>
                 
                 <div style={{ marginBottom: '1rem' }}>
-                  <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: '500' }}>Email</label>
+                  <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: '500', color: '#1e293b' }}>Email</label>
                   <input
                     type="email"
                     name="email"
                     value={profileForm.email}
-                    onChange={handleProfileChange}
-                    required
-                    style={{ width: '100%', padding: '0.75rem', borderRadius: '6px', border: '1px solid var(--border-color)', background: 'var(--bg-primary)', color: 'var(--text-primary)' }}
+                    readOnly
+                    title="Email không thể thay đổi"
+                    style={{ width: '100%', padding: '0.75rem', borderRadius: '6px', border: '1px solid #cbd5e1', backgroundColor: '#f1f5f9', color: '#64748b', cursor: 'not-allowed' }}
                   />
                 </div>
 
-                <div style={{ marginTop: '2rem', marginBottom: '1.5rem', borderBottom: '1px solid var(--border-color)', paddingBottom: '0.5rem' }}>
-                  <h4 style={{ margin: 0 }}>Đổi mật khẩu (Tuỳ chọn)</h4>
-                  <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', margin: '0.25rem 0' }}>Bỏ trống nếu bạn không muốn đổi mật khẩu</p>
+                <div style={{ marginTop: '2rem', marginBottom: '1.5rem', borderBottom: '1px solid #e2e8f0', paddingBottom: '0.5rem' }}>
+                  <h4 style={{ margin: 0, color: '#1e293b' }}>Đổi mật khẩu (Tuỳ chọn)</h4>
+                  <p style={{ fontSize: '0.85rem', color: '#64748b', margin: '0.25rem 0' }}>Bỏ trống nếu bạn không muốn đổi mật khẩu</p>
                 </div>
 
                 {!user?.password && (
-                  <div style={{ marginBottom: '1rem', fontStyle: 'italic', color: 'var(--text-secondary)' }}>
+                  <div style={{ marginBottom: '1rem', fontStyle: 'italic', color: '#64748b' }}>
                     *Tài khoản đăng nhập bằng Google không thể đổi mật khẩu.
                   </div>
                 )}
 
                 <div style={{ marginBottom: '1rem' }}>
-                  <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: '500' }}>Mật khẩu hiện tại</label>
+                  <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: '500', color: '#1e293b' }}>Mật khẩu hiện tại</label>
                   <input
                     type="password"
                     name="currentPassword"
                     value={profileForm.currentPassword}
                     onChange={handleProfileChange}
-                    style={{ width: '100%', padding: '0.75rem', borderRadius: '6px', border: '1px solid var(--border-color)', background: 'var(--bg-primary)', color: 'var(--text-primary)' }}
+                    style={{ width: '100%', padding: '0.75rem', borderRadius: '6px', border: '1px solid #cbd5e1', background: '#ffffff', color: '#1e293b' }}
                   />
                 </div>
                 
                 <div style={{ marginBottom: '1rem' }}>
-                  <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: '500' }}>Mật khẩu mới</label>
+                  <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: '500', color: '#1e293b' }}>Mật khẩu mới</label>
                   <input
                     type="password"
                     name="newPassword"
                     value={profileForm.newPassword}
                     onChange={handleProfileChange}
-                    style={{ width: '100%', padding: '0.75rem', borderRadius: '6px', border: '1px solid var(--border-color)', background: 'var(--bg-primary)', color: 'var(--text-primary)' }}
+                    style={{ width: '100%', padding: '0.75rem', borderRadius: '6px', border: '1px solid #cbd5e1', background: '#ffffff', color: '#1e293b' }}
                   />
                 </div>
                 
                 <div style={{ marginBottom: '1.5rem' }}>
-                  <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: '500' }}>Xác nhận mật khẩu mới</label>
+                  <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: '500', color: '#1e293b' }}>Xác nhận mật khẩu mới</label>
                   <input
                     type="password"
                     name="confirmPassword"
                     value={profileForm.confirmPassword}
                     onChange={handleProfileChange}
-                    style={{ width: '100%', padding: '0.75rem', borderRadius: '6px', border: '1px solid var(--border-color)', background: 'var(--bg-primary)', color: 'var(--text-primary)' }}
+                    style={{ width: '100%', padding: '0.75rem', borderRadius: '6px', border: '1px solid #cbd5e1', background: '#ffffff', color: '#1e293b' }}
                   />
                 </div>
 
                 <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
-                  <button type="submit" style={{ padding: '0.75rem 2rem', background: 'var(--primary-color)', color: 'white', border: 'none', borderRadius: '6px', fontWeight: 'bold', cursor: 'pointer', transition: 'background 0.2s', boxShadow: '0 2px 4px rgba(0,0,0,0.1)' }}>
+                  <button type="submit" style={{ padding: '0.75rem 2rem', background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)', color: 'white', border: 'none', borderRadius: '6px', fontWeight: 'bold', cursor: 'pointer', transition: 'background 0.2s', boxShadow: '0 2px 4px rgba(0,0,0,0.1)' }}>
                     Lưu Thay Đổi
                   </button>
                 </div>

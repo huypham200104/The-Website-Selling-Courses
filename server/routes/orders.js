@@ -7,7 +7,7 @@ const {
   updateOrder,
   uploadPaymentProof
 } = require('../controllers/orderController');
-const auth = require('../middleware/auth');
+const { auth } = require('../middleware/auth');
 const roleCheck = require('../middleware/roleCheck');
 const uploadImage = require('../middleware/uploadImage');
 

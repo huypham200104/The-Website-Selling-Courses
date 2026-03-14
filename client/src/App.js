@@ -13,8 +13,10 @@ import EditCourse from './pages/EditCourse';
 import InstructorCourseDetail from './pages/InstructorCourseDetail';
 import InstructorStudents from './pages/InstructorStudents';
 import InstructorProfile from './pages/InstructorProfile';
+import InstructorQuizStats from './pages/InstructorQuizStats';
 import CourseLearn from './pages/CourseLearn';
 import Checkout from './pages/Checkout';
+import StudentQuizResults from './pages/StudentQuizResults';
 import PrivateRoute from './components/PrivateRoute';
 import './App.css';
 
@@ -112,6 +114,14 @@ function AppRoutes() {
           </PrivateRoute>
         }
       />
+      <Route
+        path="/instructor/courses/:id/quiz-stats"
+        element={
+          <PrivateRoute allowedRoles={['instructor']}>
+            <InstructorQuizStats />
+          </PrivateRoute>
+        }
+      />
 
       {/* Student Routes */}
       <Route
@@ -135,6 +145,14 @@ function AppRoutes() {
         element={
           <PrivateRoute allowedRoles={['student']}>
             <Checkout />
+          </PrivateRoute>
+        }
+      />
+      <Route
+        path="/student/quiz-results"
+        element={
+          <PrivateRoute allowedRoles={['student']}>
+            <StudentQuizResults />
           </PrivateRoute>
         }
       />

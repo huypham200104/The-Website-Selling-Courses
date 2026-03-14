@@ -332,9 +332,27 @@ function InstructorCourseDetail() {
   return (
     <Layout>
       <div className="course-detail-page">
-        <div className="course-header">
-          <h1>{course.title}</h1>
-          <p>{course.description}</p>
+        <div className="course-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <div>
+            <h1>{course.title}</h1>
+            <p>{course.description}</p>
+          </div>
+          <div>
+            <button 
+              onClick={() => navigate(`/instructor/courses/${course._id}/quiz-stats`)}
+              style={{
+                padding: '10px 20px',
+                backgroundColor: '#3b82f6',
+                color: 'white',
+                border: 'none',
+                borderRadius: '8px',
+                cursor: 'pointer',
+                fontWeight: '600'
+              }}
+            >
+              📊 Thống kê bài tập
+            </button>
+          </div>
         </div>
 
         <div className="content-section">

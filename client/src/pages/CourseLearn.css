@@ -5,17 +5,26 @@
   background: #f5f7fa;
 }
 
+/* Tweak StudentHeader when inside CourseLearn */
+.course-learn .student-header {
+  box-shadow: none;
+  border-bottom: 1px solid #e2e8f0;
+}
+.course-learn .header-content {
+  max-width: 100% !important;
+  padding: 10px 24px !important;
+}
+
 /* Header */
 .learn-header {
   display: flex;
   align-items: center;
   gap: 20px;
-  padding: 16px 24px;
+  padding: 12px 24px;
   background: white;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
-  position: sticky;
-  top: 0;
-  z-index: 100;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+  border-bottom: 1px solid #e2e8f0;
+  z-index: 90;
 }
 
 .back-btn {

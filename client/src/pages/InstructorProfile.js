@@ -198,15 +198,15 @@ function InstructorProfile() {
                 </div>
 
                 <div className="form-group">
-                  <label htmlFor="email">Email *</label>
+                  <label htmlFor="email">Email</label>
                   <input
                     type="email"
                     id="email"
                     name="email"
                     value={formData.email}
-                    onChange={handleChange}
-                    required
-                    placeholder="Nhập email"
+                    readOnly
+                    title="Email không thể thay đổi"
+                    style={{ backgroundColor: 'var(--bg-secondary)', cursor: 'not-allowed' }}
                   />
                 </div>
 

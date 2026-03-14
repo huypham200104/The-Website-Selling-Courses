@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { courseService } from '../services/apiService';
+import { courseService, quizService } from '../services/apiService';
 import VideoPlayer from './VideoPlayer';
 import StudentChatBubble from '../components/StudentChatBubble';
+import StudentHeader from '../components/StudentHeader';
 import './CourseLearn.css';
 
 function CourseLearn() {
@@ -41,7 +42,7 @@ function CourseLearn() {
     }));
   };
 
-  const handleSubmitQuiz = () => {
+  const handleSubmitQuiz = async () => {
     if (!selectedQuiz) return;
     let correct = 0;
     selectedQuiz.questions.forEach((q, idx) => {
@@ -49,11 +50,33 @@ function CourseLearn() {
         correct++;
       }
     });
+
+    const total = selectedQuiz.questions.length;
+    const pct = Math.round((correct / total) * 100);
+
     setQuizScore({
       correct,
-      total: selectedQuiz.questions.length,
-      percentage: Math.round((correct / selectedQuiz.questions.length) * 100)
+      total,
+      percentage: pct
     });
+
+    try {
+      await quizService.submitResult({
+        courseId,
+        quizId: selectedQuiz._id || selectedQuiz.title, // fallback to title if _id missing
+        quizTitle: selectedQuiz.title,
+        score: correct,
+        totalQuestions: total,
+        percentage: pct,
+        answers: userAnswers
+      });
+      // Give visual feedback that it saved
+      alert('✅ Kết quả đã được tự động lưu lại hệ thống!');
+    } catch (error) {
+      console.error('Error submitting quiz result:', error);
+      alert('⚠️ Có lỗi xảy ra khi lưu kết quả. Vui lòng thử lại!');
+      // Even if it fails to save, we still show the user their score
+    }
   };
 
   useEffect(() => {
@@ -105,6 +128,7 @@ function CourseLearn() {
 
   return (
     <div className="course-learn">
+      <StudentHeader />
       {/* Header */}
       <header className="learn-header">
         <button onClick={() => navigate('/student/dashboard')} className="back-btn">

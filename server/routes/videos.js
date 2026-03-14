@@ -8,7 +8,7 @@ const {
   getVideo,
   deleteVideo
 } = require('../controllers/videoController');
-const auth = require('../middleware/auth');
+const { auth } = require('../middleware/auth');
 const upload = require('../middleware/upload');
 const roleCheck = require('../middleware/roleCheck');
 

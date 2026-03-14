@@ -88,6 +88,7 @@ app.use('/api/videos', require('./routes/videos'));
 app.use('/api/orders', require('./routes/orders'));
 app.use('/api/users', require('./routes/users'));
 app.use('/api/chat', require('./routes/chat'));
+app.use('/api/quizzes', require('./routes/quizResult'));
 
 // Health check
 app.get('/api/health', (req, res) => {

@@ -168,3 +168,21 @@ export const statsService = {
     };
   },
 };
+
+// Quiz Services
+export const quizService = {
+  submitResult: async (resultData) => {
+    const response = await api.post('/quizzes/submit', resultData);
+    return response.data;
+  },
+
+  getMyResults: async () => {
+    const response = await api.get('/quizzes/my-results');
+    return response.data;
+  },
+
+  getCourseResults: async (courseId) => {
+    const response = await api.get(`/quizzes/course/${courseId}`);
+    return response.data;
+  }
+};
