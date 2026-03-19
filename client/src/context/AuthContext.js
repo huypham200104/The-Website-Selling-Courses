@@ -1,4 +1,4 @@
-import React, { createContext, useState, useEffect, useContext } from 'react';
+import React, { createContext, useState, useEffect, useContext, useRef } from 'react';
 import { authAPI } from '../services/api';
 
 const AuthContext = createContext();
@@ -15,22 +15,29 @@ export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
+  // Flag to prevent checkAuth from overwriting state set by loginWithToken
+  const isLoggingInRef = useRef(false);
 
   const checkAuth = async () => {
     const token = localStorage.getItem('token');
     if (token) {
       try {
         const response = await authAPI.getMe();
+        // If loginWithToken ran concurrently and already set auth state, don't overwrite
+        if (isLoggingInRef.current) return;
         if (response.data) {
           setUser(response.data);
           setIsAuthenticated(true);
         }
       } catch (error) {
+        if (isLoggingInRef.current) return;
         console.error('Auth check failed:', error);
         logout();
       }
     }
-    setLoading(false);
+    if (!isLoggingInRef.current) {
+      setLoading(false);
+    }
   };
 
   useEffect(() => {
@@ -61,12 +68,38 @@ export const AuthProvider = ({ children }) => {
     setIsAuthenticated(false);
   };
 
+  const loginWithToken = async (token) => {
+    if (!token) return null;
+    isLoggingInRef.current = true;
+    try {
+      setLoading(true);
+      localStorage.setItem('token', token);
+      const response = await authAPI.getMe();
+      // Handle both cases where response might be the data itself or have a data property
+      const userData = response.data ? response.data : response;
+      
+      console.log('👤 Token login successful:', userData.email);
+      
+      setUser(userData);
+      setIsAuthenticated(true);
+      return userData;
+    } catch (error) {
+      console.error('❌ Login with token failed:', error);
+      localStorage.removeItem('token');
+      throw error;
+    } finally {
+      isLoggingInRef.current = false;
+      setLoading(false);
+    }
+  };
+
   const value = {
     user,
     setUser,
     loading,
     isAuthenticated,
     login,
+    loginWithToken,
     logout,
     checkAuth
   };
