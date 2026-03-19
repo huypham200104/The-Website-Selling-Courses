@@ -10,19 +10,34 @@ function AuthSuccess() {
 
   useEffect(() => {
     const token = searchParams.get('token');
+    console.log('[AuthSuccess] mounted. token from URL:', token ? token.substring(0, 20) + '...' : 'MISSING');
+
     if (!token) {
+      console.log('[AuthSuccess] ❌ No token in URL params!');
       setError('Thiếu token.');
       return;
     }
     let cancelled = false;
     loginWithToken(token)
       .then((user) => {
-        if (cancelled) return;
-        if (user?.role === 'admin') navigate('/dashboard', { replace: true });
-        else if (user?.role === 'instructor') navigate('/instructor/dashboard', { replace: true });
-        else navigate('/student/dashboard', { replace: true });
+        console.log('[AuthSuccess] loginWithToken success, user:', user);
+        if (cancelled) {
+          console.log('[AuthSuccess] cancelled, skipping navigate');
+          return;
+        }
+        if (user?.role === 'admin') {
+          console.log('[AuthSuccess] navigating to /dashboard');
+          navigate('/dashboard', { replace: true });
+        } else if (user?.role === 'instructor') {
+          console.log('[AuthSuccess] navigating to /instructor/dashboard');
+          navigate('/instructor/dashboard', { replace: true });
+        } else {
+          console.log('[AuthSuccess] navigating to /student/dashboard, role:', user?.role);
+          navigate('/student/dashboard', { replace: true });
+        }
       })
-      .catch(() => {
+      .catch((err) => {
+        console.error('[AuthSuccess] loginWithToken FAILED:', err);
         if (!cancelled) setError('Đăng nhập thất bại. Vui lòng thử lại.');
       });
     return () => { cancelled = true; };
