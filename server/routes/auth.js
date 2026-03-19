@@ -13,6 +13,17 @@ router.post('/login', login);
 // @desc    Google OAuth
 router.get(
   '/google',
+  (req, res, next) => {
+    const isMock = process.env.MOCK_GOOGLE_LOGIN === 'true' || 
+                   !process.env.GOOGLE_CLIENT_ID ||
+                   process.env.GOOGLE_CLIENT_ID === 'your_google_client_id';
+    
+    if (isMock) {
+      console.log('🔄 Developer Mode: Bypassing Google OAuth');
+      return res.redirect('/api/auth/google/mock');
+    }
+    next();
+  },
   passport.authenticate('google', { scope: ['profile', 'email'] })
 );
 
