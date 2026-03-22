@@ -50,6 +50,22 @@
   transition: transform 0.2s ease;
 }
 
+.chat-btn {
+  padding: 10px 18px;
+  background: #ffffff;
+  color: #2c3e50;
+  border: 1px solid #d7dce8;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: transform 0.2s ease;
+}
+
+.chat-btn:hover {
+  transform: translateY(-2px);
+}
+
 .logout-btn:hover {
   transform: translateY(-2px);
 }

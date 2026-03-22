@@ -98,6 +98,24 @@ export const orderService = {
   },
 };
 
+// Chat Services (Instructor <-> Student)
+export const chatService = {
+  getPartners: async () => {
+    const response = await api.get('/chat/partners');
+    return response.data;
+  },
+
+  getMessages: async (partnerId) => {
+    const response = await api.get(`/chat/messages/${partnerId}`);
+    return response.data;
+  },
+
+  sendMessage: async (partnerId, text) => {
+    const response = await api.post(`/chat/messages/${partnerId}`, { text });
+    return response.data;
+  },
+};
+
 // Stats Service (for dashboard)
 export const statsService = {
   getDashboardStats: async () => {

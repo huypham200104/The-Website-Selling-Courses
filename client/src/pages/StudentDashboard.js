@@ -72,6 +72,7 @@ function StudentDashboard() {
           </div>
           <div className="header-right">
             <span className="user-greeting">👋 {user?.name}</span>
+            <button onClick={() => navigate('/student/chat')} className="chat-btn">💬 Chat</button>
             <button onClick={handleLogout} className="logout-btn">🚪 Đăng xuất</button>
           </div>
         </div>

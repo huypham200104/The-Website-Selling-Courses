@@ -1,14 +1,18 @@
 const express = require('express');
+const http = require('http');
 const cors = require('cors');
 const helmet = require('helmet');
 const passport = require('passport');
 const rateLimit = require('express-rate-limit');
+const { Server } = require('socket.io');
 require('dotenv').config();
 
 // Import config
 const connectDB = require('./config/db');
+const initChatSocket = require('./socket/chatSocket');
 
 const app = express();
+const server = http.createServer(app);
 
 // Rate limiting
 const limiter = rateLimit({
@@ -54,6 +58,15 @@ app.use('/api/videos/:id/stream', streamLimiter);
 app.use('/api/videos', require('./routes/videos'));
 app.use('/api/orders', require('./routes/orders'));
 app.use('/api/users', require('./routes/users'));
+app.use('/api/chat', require('./routes/chat'));
+
+const io = new Server(server, {
+  cors: {
+    origin: process.env.CLIENT_URL,
+    credentials: true,
+  },
+});
+initChatSocket(io);
 
 // Health check
 app.get('/api/health', (req, res) => {
@@ -68,7 +81,7 @@ app.get('/api/health', (req, res) => {
 app.use(require('./middleware/errorHandler'));
 
 const PORT = process.env.PORT || 5000;
-app.listen(PORT, () => {
+server.listen(PORT, () => {
   console.log(`
 ╔═══════════════════════════════════════╗
 ║   Server running on port ${PORT}      ║

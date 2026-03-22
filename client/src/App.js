@@ -12,6 +12,7 @@ import InstructorCourses from './pages/InstructorCourses';
 import CreateCourse from './pages/CreateCourse';
 import InstructorStudents from './pages/InstructorStudents';
 import CourseLearn from './pages/CourseLearn';
+import ChatPage from './pages/ChatPage';
 import PrivateRoute from './components/PrivateRoute';
 import './App.css';
 
@@ -93,6 +94,14 @@ function AppRoutes() {
           </PrivateRoute>
         }
       />
+      <Route
+        path="/instructor/chat"
+        element={
+          <PrivateRoute allowedRoles={['instructor']}>
+            <ChatPage />
+          </PrivateRoute>
+        }
+      />
 
       {/* Student Routes */}
       <Route
@@ -108,6 +117,14 @@ function AppRoutes() {
         element={
           <PrivateRoute allowedRoles={['student']}>
             <CourseLearn />
+          </PrivateRoute>
+        }
+      />
+      <Route
+        path="/student/chat"
+        element={
+          <PrivateRoute allowedRoles={['student']}>
+            <ChatPage />
           </PrivateRoute>
         }
       />
