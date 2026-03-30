@@ -3,7 +3,8 @@ const cors = require('cors');
 const helmet = require('helmet');
 const passport = require('passport');
 const rateLimit = require('express-rate-limit');
-require('dotenv').config();
+const path = require('path');
+require('dotenv').config({ path: path.join(__dirname, '..', '.env') });
 
 // Configure ffmpeg globally
 const ffmpeg = require('fluent-ffmpeg');
@@ -75,7 +76,6 @@ connectDB().then(() => {
 });
 
 // Serve static files
-const path = require('path');
 app.use('/uploads/receipts', express.static(path.join(__dirname, 'uploads/receipts')));
 app.use('/uploads', express.static('uploads'));
 
