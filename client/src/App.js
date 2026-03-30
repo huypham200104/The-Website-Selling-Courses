@@ -18,7 +18,9 @@ import CourseLearn from './pages/CourseLearn';
 import Checkout from './pages/Checkout';
 import StudentQuizResults from './pages/StudentQuizResults';
 import PrivateRoute from './components/PrivateRoute';
+import ChatPage from './pages/ChatPage';
 import './App.css';
+
 
 function AppRoutes() {
   const { user, loading } = useAuth();
@@ -157,7 +159,26 @@ function AppRoutes() {
         }
       />
 
+      {/* Chat Routes - Instructor & Student */}
+      <Route
+        path="/instructor/chat"
+        element={
+          <PrivateRoute allowedRoles={['instructor']}>
+            <ChatPage />
+          </PrivateRoute>
+        }
+      />
+      <Route
+        path="/student/chat"
+        element={
+          <PrivateRoute allowedRoles={['student']}>
+            <ChatPage />
+          </PrivateRoute>
+        }
+      />
+
       {/* Default Route */}
+
       <Route
         path="/"
         element={

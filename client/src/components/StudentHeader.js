@@ -156,10 +156,17 @@ function StudentHeader({ customActiveTab, onTabChange }) {
               >
                 📊 Kết quả bài tập
               </button>
+              <button 
+                className={`dropdown-item ${location.pathname === '/student/chat' ? 'active-dropdown' : ''}`} 
+                onClick={() => navigate('/student/chat')}
+              >
+                💬 Tin nhắn với giảng viên
+              </button>
               <div className="dropdown-divider"></div>
               <button className="dropdown-item logout" onClick={handleLogout}>
                 🚪 Đăng xuất
               </button>
+
             </div>
           </div>
         </div>
