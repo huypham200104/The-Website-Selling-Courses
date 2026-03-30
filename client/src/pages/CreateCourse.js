@@ -29,13 +29,13 @@ function CreateCourse() {
     setLoading(true);
 
     try {
-      await courseService.create({
+      const response = await courseService.create({
         ...formData,
         price: Number(formData.price)
       });
       
-      alert('Tạo khóa học thành công! 🎉');
-      navigate('/instructor/courses');
+      alert('Tạo khóa học thành công! Bạn có thể tải lên các video cho khóa học. 🎉');
+      navigate(`/instructor/courses/${response.data._id}`);
     } catch (error) {
       console.error('Error creating course:', error);
       alert('Có lỗi xảy ra khi tạo khóa học. Vui lòng thử lại.');

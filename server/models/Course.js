@@ -29,6 +29,15 @@ const courseSchema = new mongoose.Schema({
     enum: ['beginner', 'intermediate', 'advanced'],
     default: 'beginner'
   },
+  quizzes: [{
+    title: { type: String, required: true },
+    description: String,
+    questions: [{
+      question: { type: String, required: true },
+      options: [{ type: String, required: true }],
+      correctAnswer: { type: Number, required: true } // index of the correct option
+    }]
+  }],
   students: [{
     type: mongoose.Schema.Types.ObjectId,
     ref: 'User'
@@ -36,6 +45,11 @@ const courseSchema = new mongoose.Schema({
   rating: {
     type: Number,
     default: 0
+  },
+  status: {
+    type: String,
+    enum: ['pending', 'published', 'rejected'],
+    default: 'pending' // New courses need admin approval
   },
   createdAt: {
     type: Date,

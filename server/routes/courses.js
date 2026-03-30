@@ -6,19 +6,35 @@ const {
   createCourse,
   updateCourse,
   deleteCourse,
-  enrollCourse
+  enrollCourse,
+  getAdminCourses,
+  updateCourseStatus,
+  getCourseStudents,
+  addQuiz,
+  deleteQuiz
 } = require('../controllers/courseController');
-const auth = require('../middleware/auth');
+const { auth } = require('../middleware/auth');
 const roleCheck = require('../middleware/roleCheck');
 
 // Public routes
 router.get('/', getCourses);
+
+// Admin special routes
+router.get('/admin/all', auth, roleCheck('admin'), getAdminCourses);
+
+// Get specific course and its sub-resources
+router.get('/:id/students', auth, roleCheck('instructor', 'admin'), getCourseStudents);
 router.get('/:id', getCourse);
 
 // Private routes
-router.post('/', auth, roleCheck('instructor', 'admin'), createCourse);
+router.put('/:id/status', auth, roleCheck('admin'), updateCourseStatus);
+
+router.post('/', auth, roleCheck('instructor'), createCourse);
 router.put('/:id', auth, roleCheck('instructor', 'admin'), updateCourse);
 router.delete('/:id', auth, roleCheck('instructor', 'admin'), deleteCourse);
 router.post('/:id/enroll', auth, enrollCourse);
+
+router.post('/:id/quizzes', auth, roleCheck('instructor', 'admin'), addQuiz);
+router.delete('/:id/quizzes/:quizId', auth, roleCheck('instructor', 'admin'), deleteQuiz);
 
 module.exports = router;

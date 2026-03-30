@@ -26,13 +26,19 @@ exports.createOrder = async (req, res, next) => {
       });
     }
 
-    const order = await Order.create({
-      userId: req.user._id,
-      courseId,
-      amount: course.price,
-      paymentMethod,
-      status: 'pending'
-    });
+    // Check if there is already a pending order for this exact course
+    let order = await Order.findOne({ userId: req.user._id, courseId, status: 'pending' });
+    
+    // If no existing pending order, create one
+    if (!order) {
+      order = await Order.create({
+        userId: req.user._id,
+        courseId,
+        amount: course.price,
+        paymentMethod,
+        status: 'pending'
+      });
+    }
 
     res.status(201).json({
       success: true,
@@ -161,3 +167,60 @@ exports.updateOrder = async (req, res, next) => {
     next(error);
   }
 };
+
+// @desc    Upload payment proof
+// @route   PUT /api/orders/:id/proof
+// @access  Private
+exports.uploadPaymentProof = async (req, res, next) => {
+  try {
+    console.log('--- Upload Proof Content ---');
+    console.log('Order ID:', req.params.id);
+    console.log('User ID:', req.user._id);
+    console.log('File:', req.file);
+    console.log('Body:', req.body);
+    
+    const order = await Order.findById(req.params.id);
+
+    if (!order) {
+      console.log('Order not found');
+      return res.status(404).json({
+        success: false,
+        error: 'Order not found'
+      });
+    }
+
+    // Verify ownership
+    if (order.userId.toString() !== req.user._id.toString()) {
+      console.log('Not authorized: order user is', order.userId, 'req.user is', req.user._id);
+      return res.status(403).json({
+        success: false,
+        error: 'Not authorized'
+      });
+    }
+
+    if (!req.file) {
+      console.log('No req.file provided');
+      return res.status(400).json({
+        success: false,
+        error: 'Please upload a file'
+      });
+    }
+
+    const receiptUrl = `/uploads/receipts/${req.file.filename}`;
+    console.log('Receipt URL:', receiptUrl);
+    
+    order.paymentProof = receiptUrl;
+    // status can remain pending for admin to review
+    await order.save();
+
+    console.log('Order saved successfully');
+    res.json({
+      success: true,
+      data: order
+    });
+  } catch (error) {
+    console.error('Error in uploadPaymentProof:', error);
+    next(error);
+  }
+};
+

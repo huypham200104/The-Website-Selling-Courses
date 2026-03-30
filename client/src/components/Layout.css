@@ -9,11 +9,27 @@
   flex: 1;
   padding: 30px;
   min-height: 100vh;
+  width: calc(100% - 280px);
+  overflow-x: hidden;
+  transition: margin-left 0.3s ease;
+}
+
+@media (max-width: 992px) {
+  .main-content {
+    margin-left: 0;
+    width: 100%;
+    padding-top: 80px; /* Space for toggle button */
+  }
 }
 
 @media (max-width: 768px) {
   .main-content {
-    margin-left: 0;
-    padding: 20px;
+    padding: 80px 15px 20px;
+  }
+}
+
+@media (max-width: 480px) {
+  .main-content {
+    padding: 80px 10px 15px;
   }
 }
