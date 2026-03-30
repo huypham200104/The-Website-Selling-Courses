@@ -1,0 +1,248 @@
+.chat-page {
+  padding: 24px;
+  min-height: 100vh;
+  background: linear-gradient(135deg, #f3f7ff 0%, #ffffff 45%, #ecf8f2 100%);
+}
+
+.student-chat-wrapper {
+  min-height: 100vh;
+  background: linear-gradient(135deg, #f3f7ff 0%, #ffffff 45%, #ecf8f2 100%);
+}
+
+.chat-header-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 16px;
+}
+
+.chat-header-row h1 {
+  margin: 0;
+  color: #1a2a6c;
+}
+
+.chat-header-row p {
+  margin: 6px 0 0;
+  color: #4f5d75;
+}
+
+.chat-logout-btn {
+  border: none;
+  background: #1a2a6c;
+  color: #fff;
+  border-radius: 10px;
+  padding: 10px 14px;
+  cursor: pointer;
+  font-weight: 600;
+}
+
+.chat-error {
+  background: #ffe7e7;
+  border: 1px solid #ffbaba;
+  color: #9b1c1c;
+  padding: 10px 12px;
+  border-radius: 10px;
+  margin-bottom: 12px;
+}
+
+.chat-layout {
+  display: grid;
+  grid-template-columns: 330px 1fr;
+  gap: 16px;
+  height: calc(100vh - 170px);
+}
+
+.chat-partner-panel,
+.chat-box-panel {
+  background: #fff;
+  border-radius: 16px;
+  border: 1px solid #dbe8ff;
+  box-shadow: 0 12px 24px rgba(23, 43, 77, 0.08);
+  overflow: hidden;
+}
+
+.chat-partner-panel {
+  display: flex;
+  flex-direction: column;
+}
+
+.chat-search {
+  margin: 12px;
+  border: 1px solid #c8d8f8;
+  border-radius: 10px;
+  padding: 10px 12px;
+  font-size: 14px;
+}
+
+.chat-partner-list {
+  overflow: auto;
+  padding: 0 8px 10px;
+}
+
+.chat-partner-item {
+  width: 100%;
+  border: 1px solid #e5ecfa;
+  border-radius: 12px;
+  background: #fff;
+  text-align: left;
+  padding: 10px;
+  margin: 8px 0;
+  cursor: pointer;
+}
+
+.chat-partner-item.active {
+  border-color: #1a2a6c;
+  background: #eef3ff;
+}
+
+.chat-partner-top {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 4px;
+}
+
+.chat-partner-top span {
+  font-size: 12px;
+  color: #5f6c84;
+}
+
+.chat-partner-email,
+.chat-partner-courses,
+.chat-last-message {
+  font-size: 12px;
+  color: #4f5d75;
+  margin-top: 3px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.chat-box-panel {
+  display: flex;
+  flex-direction: column;
+}
+
+.chat-box-header {
+  padding: 14px 18px;
+  border-bottom: 1px solid #e6efff;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+}
+
+.chat-box-header h2 {
+  margin: 0;
+  color: #182848;
+}
+
+.chat-box-header p {
+  margin: 2px 0 0;
+  color: #4f5d75;
+}
+
+.chat-shared-courses {
+  color: #2c5c3f;
+  font-size: 13px;
+  max-width: 40%;
+  text-align: right;
+}
+
+.chat-messages {
+  flex: 1;
+  overflow: auto;
+  padding: 14px;
+  background: linear-gradient(180deg, #f8fbff 0%, #ffffff 100%);
+}
+
+.msg-row {
+  display: flex;
+  margin-bottom: 10px;
+}
+
+.msg-row.mine {
+  justify-content: flex-end;
+}
+
+.msg-bubble {
+  max-width: 70%;
+  background: #eef2fa;
+  color: #172b4d;
+  border-radius: 12px;
+  padding: 10px;
+}
+
+.msg-bubble.mine {
+  background: #1a2a6c;
+  color: #fff;
+}
+
+.msg-bubble time {
+  display: block;
+  margin-top: 6px;
+  font-size: 11px;
+  opacity: 0.8;
+}
+
+.chat-input-row {
+  display: flex;
+  gap: 10px;
+  padding: 12px;
+  border-top: 1px solid #e6efff;
+}
+
+.chat-input-row input {
+  flex: 1;
+  border: 1px solid #c8d8f8;
+  border-radius: 10px;
+  padding: 10px 12px;
+}
+
+.chat-input-row button {
+  border: none;
+  border-radius: 10px;
+  background: #1a2a6c;
+  color: #fff;
+  padding: 0 18px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.chat-input-row button:disabled {
+  background: #97a5c8;
+  cursor: not-allowed;
+}
+
+.chat-placeholder {
+  color: #60708e;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  height: 100%;
+  padding: 20px;
+}
+
+@media (max-width: 960px) {
+  .chat-page {
+    padding: 14px;
+  }
+
+  .chat-layout {
+    grid-template-columns: 1fr;
+    height: auto;
+  }
+
+  .chat-partner-panel {
+    max-height: 320px;
+  }
+
+  .chat-box-panel {
+    min-height: 420px;
+  }
+
+  .chat-shared-courses {
+    max-width: 60%;
+  }
+}
