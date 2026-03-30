@@ -39,6 +39,10 @@ module.exports = (passport) => {
   }
 
   // JWT Strategy
+  if (!process.env.JWT_SECRET) {
+    throw new Error('❌ JWT_SECRET is not defined in .env file. Make sure .env exists in the project root directory.');
+  }
+
   const opts = {
     jwtFromRequest: ExtractJwt.fromExtractors([
       ExtractJwt.fromAuthHeaderAsBearerToken(),
