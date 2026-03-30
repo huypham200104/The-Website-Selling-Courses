@@ -30,7 +30,7 @@ function PrivateRoute({ children, allowedRoles = [] }) {
     if (user.role === 'admin') {
       return <Navigate to="/dashboard" replace />;
     } else if (user.role === 'instructor') {
-      return <Navigate to="/instructor/dashboard" replace />;
+      return <Navigate to="/instructor/courses" replace />;
     } else {
       return <Navigate to="/student/dashboard" replace />;
     }

@@ -41,6 +41,9 @@ export const authAPI = {
   login: (email, password) => api.post('/auth/login', { email, password }),
   getMe: () => api.get('/auth/me'),
   logout: () => api.post('/auth/logout'),
+  updateProfile: (data) => api.put('/auth/profile', data),
+  addFavorite: (courseId) => api.post(`/auth/favorites/${courseId}`),
+  removeFavorite: (courseId) => api.delete(`/auth/favorites/${courseId}`),
 };
 
 // User APIs
@@ -60,17 +63,25 @@ export const courseAPI = {
   update: (id, data) => api.put(`/courses/${id}`, data),
   delete: (id) => api.delete(`/courses/${id}`),
   enroll: (id) => api.post(`/courses/${id}/enroll`),
+  getAdminAll: () => api.get('/courses/admin/all'),
+  updateStatus: (id, status) => api.put(`/courses/${id}/status`, { status }),
+  addQuiz: (id, quizData) => api.post(`/courses/${id}/quizzes`, quizData),
+  deleteQuiz: (id, quizId) => api.delete(`/courses/${id}/quizzes/${quizId}`),
 };
 
 // Video APIs
 export const videoAPI = {
   getOne: (id) => api.get(`/videos/${id}`),
-  uploadChunk: (formData) => api.post('/videos/upload-chunk', formData, {
+  uploadChunk: (formData, signal) => api.post('/videos/upload-chunk', formData, {
     headers: { 'Content-Type': 'multipart/form-data' },
+    signal,
   }),
-  mergeChunks: (data) => api.post('/videos/merge-chunks', data),
+  mergeChunks: (data, signal) => api.post('/videos/merge-chunks', data, { signal }),
   delete: (id) => api.delete(`/videos/${id}`),
-  getStreamUrl: (id) => `${API_URL}/videos/${id}/stream`,
+  getStreamUrl: (id) => {
+    const token = localStorage.getItem('token');
+    return `${API_URL}/videos/${id}/stream${token ? `?token=${token}` : ''}`;
+  },
 };
 
 // Order APIs

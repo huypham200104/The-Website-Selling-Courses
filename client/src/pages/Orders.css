@@ -168,6 +168,95 @@ code {
   font-size: 16px;
 }
 
+/* Payment Proof Button */
+.btn-view-proof {
+  padding: 6px 12px;
+  background: white;
+  border: 1px solid #667eea;
+  color: #667eea;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 500;
+  transition: all 0.2s ease;
+}
+
+.btn-view-proof:hover {
+  background: #667eea;
+  color: white;
+}
+
+/* Modal for Payment Proof */
+.proof-modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.75);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  padding: 20px;
+}
+
+.proof-modal-content {
+  background: white;
+  padding: 24px;
+  border-radius: 12px;
+  max-width: 600px;
+  width: 100%;
+  position: relative;
+  box-shadow: 0 10px 25px rgba(0,0,0,0.5);
+}
+
+.proof-modal-content h3 {
+  margin-top: 0;
+  margin-bottom: 20px;
+  color: #333;
+}
+
+.proof-image-container {
+  width: 100%;
+  max-height: 70vh;
+  overflow: auto;
+  border-radius: 8px;
+  border: 1px solid #eee;
+  display: flex;
+  justify-content: center;
+  background: #fafafa;
+}
+
+.proof-image-container img {
+  max-width: 100%;
+  height: auto;
+  object-fit: contain;
+}
+
+.proof-modal-close {
+  position: absolute;
+  top: 15px;
+  right: 15px;
+  background: #f0f0f0;
+  border: none;
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: bold;
+  color: #555;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.proof-modal-close:hover {
+  background: #e0e0e0;
+  color: #333;
+}
+
 /* Summary */
 .orders-summary {
   display: grid;
@@ -196,6 +285,99 @@ code {
   font-size: 32px;
   font-weight: 700;
   color: #333;
+}
+
+/* Responsive Design */
+@media (max-width: 992px) {
+  .orders-page h1 {
+    font-size: 28px;
+  }
+
+  .table-container {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  table {
+    min-width: 700px;
+  }
+}
+
+@media (max-width: 768px) {
+  .orders-page {
+    padding: 15px;
+  }
+
+  .orders-page h1 {
+    font-size: 24px;
+  }
+
+  .filter-tabs {
+    width: 100%;
+  }
+
+  .filter-tabs button {
+    flex: 1;
+    min-width: 80px;
+  }
+
+  table {
+    font-size: 12px;
+    min-width: 600px;
+  }
+
+  th, td {
+    padding: 12px 8px;
+  }
+
+  .summary-card {
+    padding: 20px;
+  }
+
+  .summary-value {
+    font-size: 28px;
+  }
+}
+
+@media (max-width: 480px) {
+  .orders-page h1 {
+    font-size: 20px;
+  }
+
+  .filter-tabs button {
+    padding: 8px 12px;
+    font-size: 12px;
+  }
+
+  table {
+    font-size: 11px;
+  }
+
+  th, td {
+    padding: 10px 6px;
+  }
+
+  .summary-card {
+    padding: 15px;
+  }
+
+  .summary-card h3 {
+    font-size: 12px;
+  }
+
+  .summary-value {
+    font-size: 24px;
+  }
+
+  .action-buttons {
+    flex-direction: column;
+  }
+
+  .btn-approve,
+  .btn-reject {
+    width: 100%;
+    height: 28px;
+  }
 }
 
 .summary-value.pending-count {

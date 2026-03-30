@@ -1,0 +1,135 @@
+.student-chat-root {
+  position: fixed;
+  right: 24px;
+  bottom: 24px;
+  z-index: 1500;
+}
+
+.student-chat-fab {
+  border: none;
+  border-radius: 999px;
+  background: linear-gradient(135deg, #2867f0 0%, #26b1d9 100%);
+  color: #fff;
+  min-width: 62px;
+  height: 62px;
+  font-weight: 700;
+  font-size: 18px;
+  box-shadow: 0 10px 25px rgba(13, 41, 107, 0.35);
+  cursor: pointer;
+}
+
+.student-chat-panel {
+  width: min(380px, calc(100vw - 24px));
+  height: 520px;
+  margin-bottom: 12px;
+  border-radius: 16px;
+  overflow: hidden;
+  background: #f7f9fc;
+  border: 1px solid #dbe4f0;
+  display: flex;
+  flex-direction: column;
+  box-shadow: 0 16px 35px rgba(19, 39, 68, 0.24);
+}
+
+.student-chat-header {
+  background: #102542;
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 14px;
+}
+
+.student-chat-header h3 {
+  margin: 0;
+  font-size: 15px;
+}
+
+.student-chat-header button {
+  border: none;
+  background: transparent;
+  color: #fff;
+  cursor: pointer;
+  font-size: 15px;
+}
+
+.student-chat-messages {
+  flex: 1;
+  overflow-y: auto;
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.chat-item {
+  padding: 10px 12px;
+  border-radius: 10px;
+  max-width: 90%;
+  line-height: 1.5;
+  font-size: 14px;
+  white-space: pre-wrap;
+}
+
+.chat-item.user {
+  background: #2f6fed;
+  color: white;
+  align-self: flex-end;
+}
+
+.chat-item.assistant {
+  background: #e6ecf5;
+  color: #102542;
+  align-self: flex-start;
+}
+
+.student-chat-input {
+  border-top: 1px solid #dbe4f0;
+  padding: 10px;
+  background: #fff;
+  display: flex;
+  gap: 8px;
+}
+
+.student-chat-input textarea {
+  resize: none;
+  flex: 1;
+  border-radius: 10px;
+  border: 1px solid #ccd5e1;
+  padding: 10px;
+  font-size: 14px;
+  font-family: inherit;
+}
+
+.student-chat-input button {
+  border: none;
+  border-radius: 10px;
+  padding: 0 16px;
+  background: #102542;
+  color: #fff;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.student-chat-input button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+@media (max-width: 640px) {
+  .student-chat-root {
+    right: 12px;
+    bottom: 12px;
+  }
+
+  .student-chat-panel {
+    width: min(360px, calc(100vw - 12px));
+    height: 70vh;
+  }
+
+  .student-chat-fab {
+    min-width: 56px;
+    height: 56px;
+    font-size: 16px;
+  }
+}

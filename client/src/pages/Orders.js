@@ -7,6 +7,7 @@ function Orders() {
   const [orders, setOrders] = useState([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState('all'); // all, pending, completed, failed
+  const [selectedProof, setSelectedProof] = useState(null);
 
   useEffect(() => {
     fetchOrders();
@@ -103,6 +104,7 @@ function Orders() {
               <th>Khách hàng</th>
               <th>Số tiền</th>
               <th>Phương thức</th>
+              <th>Minh chứng</th>
               <th>Trạng thái</th>
               <th>Ngày tạo</th>
               <th>Hành động</th>
@@ -126,6 +128,19 @@ function Orders() {
                     <strong>{order.amount.toLocaleString('vi-VN')}đ</strong>
                   </td>
                   <td>{order.paymentMethod || 'N/A'}</td>
+                  <td>
+                    {order.paymentProof ? (
+                      <button 
+                        className="btn-view-proof"
+                        onClick={() => setSelectedProof(order.paymentProof)}
+                        title="Xem biên lai"
+                      >
+                        🖼️ Xem
+                      </button>
+                    ) : (
+                      <span className="no-action">-</span>
+                    )}
+                  </td>
                   <td>
                     <span className={`status-badge ${badge.class}`}>
                       {badge.icon} {badge.text}
@@ -196,6 +211,23 @@ function Orders() {
           </p>
         </div>
       </div>
+
+      {/* Image Modal for Payment Proof */}
+      {selectedProof && (
+        <div className="proof-modal-overlay" onClick={() => setSelectedProof(null)}>
+          <div className="proof-modal-content" onClick={(e) => e.stopPropagation()}>
+            <button className="proof-modal-close" onClick={() => setSelectedProof(null)}>✕</button>
+            <h3>Biên lai chuyển khoản</h3>
+            <div className="proof-image-container">
+              <img 
+                src={selectedProof.startsWith('http') ? selectedProof : `http://localhost:5000${selectedProof}`} 
+                alt="Payment Proof" 
+              />
+            </div>
+          </div>
+        </div>
+      )}
+
       </div>
     </Layout>
   );
