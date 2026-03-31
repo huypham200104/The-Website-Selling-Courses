@@ -29,4 +29,5 @@ pnpm-debug.log*
 server/uploads/
 server/output.txt
 push_error.txt
+docs/large-video-upload.md
 
