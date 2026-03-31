@@ -1,0 +1,56 @@
+{
+  "title": "JavaScript Fundamentals",
+  "description": "10-question warmup that covers basics of variables, scope, arrays, and ES6 syntax.",
+  "questions": [
+    {
+      "question": "Which keyword declares a block-scoped variable that can be reassigned?",
+      "options": ["var", "let", "const", "static"],
+      "correctAnswer": 1
+    },
+    {
+      "question": "What is the output of ['a', 'b', 'c'].length?",
+      "options": ["2", "3", "undefined", "Throws an error"],
+      "correctAnswer": 1
+    },
+    {
+      "question": "Which Array method returns a new array with elements that pass a condition?",
+      "options": ["map", "filter", "reduce", "forEach"],
+      "correctAnswer": 1
+    },
+    {
+      "question": "The expression `const fn = () => 42;` defines what kind of function?",
+      "options": ["Generator function", "Async function", "Arrow function", "Constructor function"],
+      "correctAnswer": 2
+    },
+    {
+      "question": "Which operator spreads array elements into a new array literal?",
+      "options": ["==", "...", "=>", "::"],
+      "correctAnswer": 1
+    },
+    {
+      "question": "Which value is considered falsy in JavaScript?",
+      "options": ["'0'", "[]", "{}", "0"],
+      "correctAnswer": 3
+    },
+    {
+      "question": "What does `const { name } = user;` do?",
+      "options": ["Creates a new object named user", "Performs deep cloning", "Destructures the name property from user", "Adds a name property to user"],
+      "correctAnswer": 2
+    },
+    {
+      "question": "Which statement about `const` is true?",
+      "options": ["It prevents property mutation", "It must be initialized at declaration", "It hoists the variable", "It creates a function scope"],
+      "correctAnswer": 1
+    },
+    {
+      "question": "How do you convert a JSON string to an object?",
+      "options": ["JSON.encode()", "JSON.stringify()", "JSON.parse()", "JSON.objectify()"],
+      "correctAnswer": 2
+    },
+    {
+      "question": "What does `Array.isArray(value)` return when value is an array?",
+      "options": ["null", "true", "false", "length of the array"],
+      "correctAnswer": 1
+    }
+  ]
+}
