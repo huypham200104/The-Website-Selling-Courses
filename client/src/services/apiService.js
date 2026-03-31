@@ -91,6 +91,21 @@ export const courseService = {
     const response = await api.get(`/courses/${id}/students`);
     return response.data;
   },
+
+  getReviews: async (id) => {
+    const response = await api.get(`/courses/${id}/reviews`);
+    return response.data;
+  },
+
+  addReview: async (id, payload) => {
+    const response = await api.post(`/courses/${id}/reviews`, payload);
+    return response.data;
+  },
+
+  deleteReview: async (courseId, reviewId) => {
+    const response = await api.delete(`/courses/${courseId}/reviews/${reviewId}`);
+    return response.data;
+  },
 };
 
 // User Services (Admin only)
