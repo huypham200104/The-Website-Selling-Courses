@@ -488,6 +488,7 @@ Dự án áp dụng các biện pháp bảo mật sau:
 
 ## 🗺️ Tính năng sắp ra mắt
 
+- [ ] 📋 **Tạo quiz bằng file JSON** *(Ưu tiên cao)* — Upload file `.json` theo cấu trúc chuẩn để tự động tạo bài kiểm tra trắc nghiệm
 - [ ] 💳 **Tích hợp thanh toán tự động** (VNPAY, MoMo, ZaloPay, PayOS)
 - [ ] 🎟️ **Mã giảm giá** (Coupons/Vouchers)
 - [ ] 📈 **Theo dõi tiến độ học tập** (% hoàn thành khóa học)
