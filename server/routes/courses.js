@@ -11,7 +11,10 @@ const {
   updateCourseStatus,
   getCourseStudents,
   addQuiz,
-  deleteQuiz
+  deleteQuiz,
+  getCourseReviews,
+  createCourseReview,
+  deleteCourseReview
 } = require('../controllers/courseController');
 const { auth } = require('../middleware/auth');
 const roleCheck = require('../middleware/roleCheck');
@@ -24,6 +27,9 @@ router.get('/admin/all', auth, roleCheck('admin'), getAdminCourses);
 
 // Get specific course and its sub-resources
 router.get('/:id/students', auth, roleCheck('instructor', 'admin'), getCourseStudents);
+router.get('/:id/reviews', auth, roleCheck('student', 'instructor', 'admin'), getCourseReviews);
+router.post('/:id/reviews', auth, roleCheck('student'), createCourseReview);
+router.delete('/:courseId/reviews/:reviewId', auth, roleCheck('admin'), deleteCourseReview);
 router.get('/:id', getCourse);
 
 // Private routes

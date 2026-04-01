@@ -1,14 +1,16 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { courseService, quizService } from '../services/apiService';
 import VideoPlayer from './VideoPlayer';
 import StudentChatBubble from '../components/StudentChatBubble';
 import StudentHeader from '../components/StudentHeader';
+import { useAuth } from '../context/AuthContext';
 import './CourseLearn.css';
 
 function CourseLearn() {
   const { courseId } = useParams();
   const navigate = useNavigate();
+  const { user } = useAuth();
   const [course, setCourse] = useState(null);
   const [loading, setLoading] = useState(true);
   const [selectedVideo, setSelectedVideo] = useState(null); // null = off
@@ -17,6 +19,27 @@ function CourseLearn() {
   // Quiz state
   const [userAnswers, setUserAnswers] = useState({});
   const [quizScore, setQuizScore] = useState(null);
+
+  // Review state
+  const [reviews, setReviews] = useState([]);
+  const [reviewMeta, setReviewMeta] = useState({ averageRating: 0, reviewCount: 0 });
+  const [reviewForm, setReviewForm] = useState({ rating: 0, comment: '' });
+  const [reviewError, setReviewError] = useState('');
+  const [reviewsLoading, setReviewsLoading] = useState(true);
+  const [submittingReview, setSubmittingReview] = useState(false);
+
+  const loadReviews = useCallback(async () => {
+    try {
+      setReviewsLoading(true);
+      const response = await courseService.getReviews(courseId);
+      setReviews(response.data || []);
+      setReviewMeta(response.meta || { averageRating: 0, reviewCount: 0 });
+    } catch (error) {
+      console.error('Error loading reviews:', error);
+    } finally {
+      setReviewsLoading(false);
+    }
+  }, [courseId]);
 
   const handleSelectInfo = () => {
     setSelectedVideo(null);
@@ -79,6 +102,50 @@ function CourseLearn() {
     }
   };
 
+  const handleSelectRating = (value) => {
+    setReviewForm((prev) => ({ ...prev, rating: value }));
+    setReviewError('');
+  };
+
+  const handleReviewCommentChange = (e) => {
+    setReviewForm((prev) => ({ ...prev, comment: e.target.value }));
+  };
+
+  const handleSubmitReview = async (e) => {
+    e.preventDefault();
+    if (!canSubmitReview) return;
+    if (!reviewForm.rating) {
+      setReviewError('Vui lòng chọn số sao trước khi gửi đánh giá.');
+      return;
+    }
+
+    setSubmittingReview(true);
+    setReviewError('');
+    try {
+      await courseService.addReview(courseId, {
+        rating: reviewForm.rating,
+        comment: reviewForm.comment.trim(),
+      });
+      setReviewForm({ rating: 0, comment: '' });
+      await loadReviews();
+    } catch (error) {
+      const errMsg = error?.response?.data?.error || 'Không thể gửi đánh giá. Vui lòng thử lại sau.';
+      setReviewError(errMsg);
+    } finally {
+      setSubmittingReview(false);
+    }
+  };
+
+  const renderStars = (value = 0) => (
+    <div className="reviews-stars" aria-hidden="true">
+      {[1, 2, 3, 4, 5].map((star) => (
+        <span key={star} className={value >= star ? 'filled' : 'empty'}>
+          ★
+        </span>
+      ))}
+    </div>
+  );
+
   useEffect(() => {
     // Chặn các phím tắt save (nhưng cho phép chuột phải)
     const handleKeyDown = (e) => {
@@ -115,6 +182,30 @@ function CourseLearn() {
     };
     fetchCourse();
   }, [courseId, navigate]);
+
+  useEffect(() => {
+    loadReviews();
+  }, [loadReviews]);
+
+  const isEnrolled = useMemo(() => {
+    if (!course || !user) return false;
+    return (course.students || []).some((student) => {
+      if (!student) return false;
+      if (typeof student === 'string') return student === user._id;
+      if (typeof student === 'object' && student._id) return student._id === user._id;
+      return student.toString() === user._id;
+    });
+  }, [course, user]);
+
+  const userHasReview = useMemo(() => {
+    if (!user) return false;
+    return reviews.some((review) => {
+      const reviewerId = review.student?._id || review.student;
+      return reviewerId && reviewerId.toString() === user._id;
+    });
+  }, [reviews, user]);
+
+  const canSubmitReview = isEnrolled && !userHasReview;
 
   const formatDuration = (seconds) => {
     if (!seconds) return '';
@@ -305,6 +396,101 @@ function CourseLearn() {
               <div className="description-box">
                 <h3>Mô tả khóa học</h3>
                 <p>{course.description}</p>
+              </div>
+
+              <div className="reviews-section">
+                <div className="reviews-heading">
+                  <div>
+                    <h3>⭐ Đánh giá &amp; nhận xét</h3>
+                    <p className="reviews-subtitle">Lắng nghe cảm nhận từ cộng đồng học viên</p>
+                  </div>
+                  <div className="rating-summary">
+                    <span className="rating-score">{(reviewMeta.averageRating || 0).toFixed(1)}</span>
+                    <div className="rating-details">
+                      {renderStars(reviewMeta.averageRating || 0)}
+                      <span className="rating-count">{reviewMeta.reviewCount || 0} đánh giá</span>
+                    </div>
+                  </div>
+                </div>
+
+                {isEnrolled && (
+                  <div className="review-form-card">
+                    {userHasReview ? (
+                      <div className="review-success">✅ Bạn đã gửi đánh giá cho khóa học này. Cảm ơn bạn!</div>
+                    ) : (
+                      <form onSubmit={handleSubmitReview}>
+                        <label className="form-label">Chọn số sao</label>
+                        <div className="star-input" role="radiogroup" aria-label="Chọn số sao đánh giá">
+                          {[1, 2, 3, 4, 5].map((star) => (
+                            <button
+                              type="button"
+                              key={star}
+                              className={reviewForm.rating >= star ? 'filled' : ''}
+                              onClick={() => handleSelectRating(star)}
+                              aria-pressed={reviewForm.rating >= star}
+                              aria-label={`Đánh giá ${star} sao`}
+                            >
+                              ★
+                            </button>
+                          ))}
+                        </div>
+
+                        <label className="form-label" htmlFor="review-comment">Nhận xét (tùy chọn)</label>
+                        <textarea
+                          id="review-comment"
+                          rows={3}
+                          maxLength={1000}
+                          placeholder="Chia sẻ cảm nhận của bạn về khóa học này..."
+                          value={reviewForm.comment}
+                          onChange={handleReviewCommentChange}
+                        />
+                        {reviewError && <p className="review-error">{reviewError}</p>}
+                        <button type="submit" className="btn-submit-review" disabled={submittingReview}>
+                          {submittingReview ? 'Đang gửi...' : 'Gửi đánh giá'}
+                        </button>
+                      </form>
+                    )}
+                  </div>
+                )}
+
+                {!isEnrolled && (
+                  <div className="review-info-box">
+                    🔒 Bạn cần tham gia khóa học để có thể gửi đánh giá.
+                  </div>
+                )}
+
+                <div className="review-list">
+                  {reviewsLoading ? (
+                    <div className="reviews-placeholder">Đang tải đánh giá...</div>
+                  ) : reviews.length === 0 ? (
+                    <div className="reviews-placeholder">Chưa có đánh giá nào. Hãy là người đầu tiên chia sẻ cảm nhận!</div>
+                  ) : (
+                    reviews.map((review) => (
+                      <div className="review-card" key={review._id}>
+                        <img
+                          src={
+                            review.student?.avatar ||
+                            `https://ui-avatars.com/api/?name=${encodeURIComponent(review.student?.name || 'User')}&background=random&color=fff`
+                          }
+                          alt={review.student?.name}
+                          className="review-avatar"
+                        />
+                        <div className="review-content">
+                          <div className="review-header-row">
+                            <div>
+                              <strong>{review.student?.name || 'Học viên'}</strong>
+                              <div className="review-date">
+                                {review.createdAt ? new Date(review.createdAt).toLocaleDateString('vi-VN') : ''}
+                              </div>
+                            </div>
+                            {renderStars(review.rating)}
+                          </div>
+                          {review.comment && <p className="review-comment-text">{review.comment}</p>}
+                        </div>
+                      </div>
+                    ))
+                  )}
+                </div>
               </div>
 
               {course.videos?.length > 0 ? (

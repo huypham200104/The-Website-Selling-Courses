@@ -1,0 +1,56 @@
+{
+  "title": "React Hooks Essentials",
+  "description": "Assess understanding of the most common React hooks and their rules.",
+  "questions": [
+    {
+      "question": "Which hook is used to store local component state?",
+      "options": ["useMemo", "useState", "useEffect", "useReducer"],
+      "correctAnswer": 1
+    },
+    {
+      "question": "The Rules of Hooks require hooks to be called...",
+      "options": ["Only inside loops", "From class components", "At the top level of React function components", "Inside conditional blocks"],
+      "correctAnswer": 2
+    },
+    {
+      "question": "What is a common use case for useEffect?",
+      "options": ["Declaring Context", "Handling side effects like data fetching", "Styling components", "Mutating Redux state"],
+      "correctAnswer": 1
+    },
+    {
+      "question": "Which hook memoizes expensive calculations?",
+      "options": ["useCallback", "useMemo", "useRef", "useLayoutEffect"],
+      "correctAnswer": 1
+    },
+    {
+      "question": "When should useRef be preferred over useState?",
+      "options": ["When changes must trigger rerenders", "When storing mutable values across renders without rerendering", "When computing derived state", "Never"],
+      "correctAnswer": 1
+    },
+    {
+      "question": "How can you share state logic between components without HOCs?",
+      "options": ["Custom hooks", "setState", "Prop drilling", "Component inheritance"],
+      "correctAnswer": 0
+    },
+    {
+      "question": "Which dependency array ensures an effect runs only once?",
+      "options": ["[count]", "[]", "[props]", "[state, props]"],
+      "correctAnswer": 1
+    },
+    {
+      "question": "What happens if you omit dependencies the effect uses?",
+      "options": ["React throws a runtime error", "Effect never runs", "You risk stale values and inconsistent behavior", "React optimizes automatically"],
+      "correctAnswer": 2
+    },
+    {
+      "question": "Which hook returns a memoized callback to avoid re-creating functions?",
+      "options": ["useMemo", "useCallback", "useContext", "useSyncExternalStore"],
+      "correctAnswer": 1
+    },
+    {
+      "question": "useReducer is best suited for...",
+      "options": ["Simple boolean toggles", "Forms or complex state transitions", "Fetching data", "Styling components"],
+      "correctAnswer": 1
+    }
+  ]
+}

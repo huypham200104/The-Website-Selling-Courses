@@ -102,13 +102,32 @@ app.get('/api/health', (req, res) => {
 // Error handler (must be last)
 app.use(require('./middleware/errorHandler'));
 
+// Create HTTP server + attach Socket.IO
+const http = require('http');
+const { Server } = require('socket.io');
+
+const httpServer = http.createServer(app);
+
+const io = new Server(httpServer, {
+  cors: {
+    origin: process.env.CLIENT_URL,
+    credentials: true,
+  },
+  transports: ['websocket', 'polling'],
+});
+
+// Init chat socket
+const initChatSocket = require('./socket/chatSocket');
+initChatSocket(io);
+
 const PORT = process.env.PORT || 5000;
-app.listen(PORT, () => {
+httpServer.listen(PORT, () => {
   console.log(`
 ╔═══════════════════════════════════════╗
 ║   Server running on port ${PORT}      ║
 ║   Environment: ${process.env.NODE_ENV}       ║
 ║   API: http://localhost:${PORT}/api    ║
+║   Socket.IO: ✅ Enabled               ║
 ╚═══════════════════════════════════════╝
   `);
 });
