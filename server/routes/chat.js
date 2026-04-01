@@ -10,7 +10,7 @@ const {
 const { studentAssistantChat } = require('../controllers/aiChatController');
 
 router.use(auth);
-router.use(roleCheck('instructor', 'student'));
+router.use(roleCheck('instructor', 'student', 'admin'));
 
 router.post('/', studentAssistantChat);
 router.get('/partners', getPartners);

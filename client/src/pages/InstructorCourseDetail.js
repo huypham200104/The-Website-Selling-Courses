@@ -51,6 +51,12 @@ function InstructorCourseDetail() {
     file: null
   });
 
+  const [essayForm, setEssayForm] = useState({
+    title: '',
+    description: '',
+    prompt: ''
+  });
+
   useEffect(() => {
     fetchCourseDetails();
     loadReviews();
@@ -367,8 +373,57 @@ function InstructorCourseDetail() {
     }
   };
 
+  const handleEssayChange = (e) => {
+    const { name, value } = e.target;
+    setEssayForm(prev => ({ ...prev, [name]: value }));
+  };
+
+  const handleCreateEssay = async (e) => {
+    e.preventDefault();
+    if (!essayForm.title || !essayForm.prompt) {
+      alert('Vui lòng nhập tiêu đề và đề bài tự luận');
+      return;
+    }
+    try {
+      const payload = {
+        title: essayForm.title,
+        description: essayForm.description,
+        type: 'essay',
+        questions: [
+          {
+            question: essayForm.prompt,
+            options: [],
+            correctAnswer: 0,
+            type: 'essay'
+          }
+        ]
+      };
+      await courseService.addQuiz(id, payload);
+      alert('Đã thêm bài tập tự luận');
+      setEssayForm({ title: '', description: '', prompt: '' });
+      fetchCourseDetails();
+    } catch (err) {
+      console.error('Lỗi tạo bài tự luận:', err);
+      alert(err.response?.data?.message || 'Không thể tạo bài tự luận');
+    }
+  };
+
   if (loading) return <Layout><div className="loading">Đang tải...</div></Layout>;
   if (!course) return <Layout><div className="loading">Khóa học không tồn tại</div></Layout>;
+
+  const getTimestamp = (item) => {
+    if (item?.createdAt) return new Date(item.createdAt).getTime();
+    if (item?._id) {
+      // Extract timestamp from Mongo ObjectId
+      return parseInt(item._id.substring(0, 8), 16) * 1000;
+    }
+    return 0;
+  };
+
+  const lessons = [
+    ...(course.videos || []).map((v) => ({ ...v, type: 'video' })),
+    ...(course.quizzes || []).map((q) => ({ ...q, type: q.type || (q.questions?.some(qq => !qq.options || qq.options.length === 0) ? 'essay' : 'quiz') }))
+  ].sort((a, b) => getTimestamp(a) - getTimestamp(b));
 
   return (
     <Layout>
@@ -378,7 +433,7 @@ function InstructorCourseDetail() {
             <h1>{course.title}</h1>
             <p>{course.description}</p>
           </div>
-          <div>
+          <div style={{ display: 'flex', gap: '10px' }}>
             <button 
               onClick={() => navigate(`/instructor/courses/${course._id}/quiz-stats`)}
               style={{
@@ -391,74 +446,71 @@ function InstructorCourseDetail() {
                 fontWeight: '600'
               }}
             >
-              📊 Thống kê bài tập
+              📊 Thống kê & chấm bài
+            </button>
+            <button 
+              onClick={() => navigate(`/instructor/courses/${course._id}`)}
+              style={{
+                padding: '10px 16px',
+                backgroundColor: '#e2e8f0',
+                color: '#0f172a',
+                border: '1px solid #cbd5e1',
+                borderRadius: '8px',
+                cursor: 'pointer',
+                fontWeight: '600'
+              }}
+            >
+              🔄 Làm mới
             </button>
           </div>
         </div>
 
         <div className="content-section">
-          <div className="videos-list">
-            <h2>🎬 Danh sách Video ({course.videos?.length || 0})</h2>
-            
-            {course.videos?.length === 0 ? (
-              <p>Chưa có video nào. Hãy tải lên video đầu tiên!</p>
+          <div className="lessons-list">
+            <h2>📚 Nội dung khóa học (video + bài tập)</h2>
+            {lessons.length === 0 ? (
+              <p>Chưa có nội dung. Hãy tải video hoặc thêm bài tập.</p>
             ) : (
-              course.videos?.map((video, index) => {
-                const streamUrl = video._id ? videoAPI.getStreamUrl(video._id) : '';
-                console.log('Video item:', { 
-                  id: video._id, 
-                  title: video.title,
-                  videoUrl: video.videoUrl,
-                  streamUrl
-                });
-                
+              lessons.map((item, idx) => {
+                const isVideo = item.type === 'video';
+                const isEssay = item.type === 'essay' || (item.questions && item.questions[0] && (!item.questions[0].options || item.questions[0].options.length === 0 || item.questions[0].type === 'essay'));
+                const label = isVideo ? 'Video' : (isEssay ? 'Bài tập tự luận' : 'Bài tập trắc nghiệm');
+                const streamUrl = isVideo && item._id ? videoAPI.getStreamUrl(item._id) : '';
                 return (
-                  <div key={video._id || index} className="video-item">
-                    <div className="video-content-main">
-                      <div className="video-info">
-                        <h4>{video.title}</h4>
-                        <p>{video.description}</p>
-                        {video._id && (
-                          <p style={{ fontSize: '12px', color: '#666' }}>
-                            Video ID: {video._id}
+                  <div key={item._id || idx} className="lesson-item" style={{ border: '1px solid #e2e8f0', borderRadius: '10px', padding: '15px', marginBottom: '12px' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '12px' }}>
+                      <div style={{ flex: 1 }}>
+                        <div style={{ display: 'flex', gap: '10px', alignItems: 'center', marginBottom: '8px' }}>
+                          <span style={{ padding: '4px 10px', borderRadius: '999px', background: isVideo ? '#e0f2fe' : isEssay ? '#fef9c3' : '#e0f7f1', color: '#0f172a', fontWeight: 600 }}>
+                            {label}
+                          </span>
+                          <span style={{ color: '#94a3b8', fontSize: '12px' }}>#{idx + 1}</span>
+                        </div>
+                        <h4 style={{ margin: '0 0 6px 0' }}>{item.title}</h4>
+                        <p style={{ margin: '0 0 8px 0', color: '#475569' }}>{item.description || (isVideo ? 'Video bài học' : (isEssay ? item.questions?.[0]?.question : item.questions?.[0]?.question))}</p>
+                        {!isVideo && (
+                          <p style={{ margin: 0, fontSize: '13px', color: '#64748b' }}>
+                            {isEssay ? 'Tự luận - học viên nộp đáp án dạng văn bản' : `${item.questions?.length || 0} câu hỏi`}
                           </p>
                         )}
                       </div>
-                      {video._id ? (
-                        <div className="video-player-container">
+                      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '8px' }}>
+                        {isVideo && item._id && (
                           <video 
-                            className="video-player"
+                            style={{ width: '260px', borderRadius: '8px', background: '#000' }}
                             controls 
                             src={streamUrl}
                             preload="metadata"
-                            onError={(e) => {
-                              console.error('Video error:', {
-                                videoId: video._id,
-                                error: e.target.error,
-                                code: e.target.error?.code,
-                                message: e.target.error?.message,
-                                src: streamUrl
-                              });
-                            }}
-                            onCanPlay={() => console.log('Video can play:', video._id)}
-                            onLoadedMetadata={() => console.log('Video metadata loaded:', video._id)}
-                          >
-                            Trình duyệt của bạn không hỗ trợ thẻ video.
-                          </video>
-                          <p style={{ fontSize: '12px', color: '#888', marginTop: '8px' }}>
-                            💡 Video đã được chuyển đổi sang fragmented MP4 (H.264/AAC)
-                          </p>
+                          />
+                        )}
+                        <div style={{ display: 'flex', gap: '8px' }}>
+                          {isVideo ? (
+                            <button className="btn-delete" onClick={() => handleDeleteVideo(item._id)}>🗑️ Xóa</button>
+                          ) : (
+                            <button className="btn-delete" onClick={() => handleDeleteQuiz(item._id)}>🗑️ Xóa</button>
+                          )}
                         </div>
-                      ) : (
-                        <div className="video-player-container">
-                          <p style={{ color: 'red' }}>⚠️ Video không có ID</p>
-                        </div>
-                      )}
-                    </div>
-                    <div className="video-actions">
-                      <button className="btn-delete" onClick={() => handleDeleteVideo(video._id)}>
-                        🗑️ Xóa
-                      </button>
+                      </div>
                     </div>
                   </div>
                 );
@@ -537,39 +589,7 @@ function InstructorCourseDetail() {
           </div>
 
           <div className="quizzes-section" style={{ marginTop: '30px' }}>
-            <h2>📝 Danh sách Bài tập / Trắc nghiệm ({course.quizzes?.length || 0})</h2>
-            
-            {course.quizzes?.length > 0 ? (
-              <div className="quizzes-list">
-                {course.quizzes.map((quiz, index) => (
-                  <div key={quiz._id || index} className="quiz-item" style={{ 
-                    border: '1px solid #e2e8f0', 
-                    borderRadius: '8px', 
-                    padding: '15px', 
-                    marginBottom: '15px',
-                    display: 'flex',
-                    justifyContent: 'space-between',
-                    alignItems: 'center'
-                  }}>
-                    <div>
-                      <h4 style={{ margin: '0 0 5px 0' }}>{quiz.title}</h4>
-                      <p style={{ margin: '0', fontSize: '13px', color: '#64748b' }}>
-                        {quiz.questions?.length} câu hỏi | {quiz.description || 'Không có mô tả'}
-                      </p>
-                    </div>
-                    <button 
-                      className="btn-delete" 
-                      onClick={() => handleDeleteQuiz(quiz._id)}
-                      style={{ padding: '8px 15px', backgroundColor: '#e74c3c', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer' }}
-                    >
-                      🗑️ Xóa bài tập
-                    </button>
-                  </div>
-                ))}
-              </div>
-            ) : (
-              <p style={{ color: '#64748b' }}>Chưa có bài tập trắc nghiệm nào.</p>
-            )}
+            <h2>📝 Thêm bài tập</h2>
 
             <div className="upload-quiz-section" style={{ marginTop: '20px', padding: '20px', backgroundColor: '#f8fafc', borderRadius: '8px' }}>
               <h3 style={{ margin: '0 0 15px 0' }}>⬆️ Tải lên file JSON Trắc nghiệm</h3>
@@ -596,6 +616,25 @@ function InstructorCourseDetail() {
                   </pre>
                 </p>
               </div>
+            </div>
+
+            <div className="upload-quiz-section" style={{ marginTop: '20px', padding: '20px', backgroundColor: '#f0fdf4', borderRadius: '8px' }}>
+              <h3 style={{ margin: '0 0 15px 0' }}>🧾 Thêm bài tập tự luận</h3>
+              <form onSubmit={handleCreateEssay}>
+                <div className="form-group">
+                  <label>Tiêu đề *</label>
+                  <input name="title" value={essayForm.title} onChange={handleEssayChange} required />
+                </div>
+                <div className="form-group">
+                  <label>Mô tả</label>
+                  <textarea name="description" value={essayForm.description} onChange={handleEssayChange} rows="3" />
+                </div>
+                <div className="form-group">
+                  <label>Đề bài / Yêu cầu *</label>
+                  <textarea name="prompt" value={essayForm.prompt} onChange={handleEssayChange} rows="4" required placeholder="Viết bài luận về..." />
+                </div>
+                <button type="submit" className="btn-primary">Thêm bài tự luận</button>
+              </form>
             </div>
           </div>
 

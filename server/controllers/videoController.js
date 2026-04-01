@@ -491,6 +491,54 @@ exports.streamVideo = async (req, res, next) => {
   }
 };
 
+// @desc    Stream video for preview on checkout (no enrollment check)
+// @route   GET /api/videos/:id/preview-stream
+// @access  Private (any authenticated user)
+exports.previewStreamVideo = async (req, res, next) => {
+  try {
+    const videoId = req.params.id;
+    const video = await Video.findById(videoId, 'videoUrl courseId');
+    if (!video) return res.status(404).json({ success: false, error: 'Video not found' });
+
+    // Any authenticated user can access preview (for checkout page)
+    const cleanVideoUrl = video.videoUrl.startsWith('/') ? video.videoUrl.slice(1) : video.videoUrl;
+    const videoPath = path.join(__dirname, '..', cleanVideoUrl);
+    if (!fs.existsSync(videoPath)) {
+      return res.status(404).json({ success: false, error: 'Video file not found' });
+    }
+
+    const { size: fileSize } = fs.statSync(videoPath);
+    const range = req.headers.range;
+
+    if (range) {
+      const parts = range.replace(/bytes=/, '').split('-');
+      const start = parseInt(parts[0], 10);
+      if (start >= fileSize) {
+        res.writeHead(416, { 'Content-Range': `bytes */${fileSize}` });
+        return res.end();
+      }
+      const end = parts[1] ? Math.min(parseInt(parts[1], 10), fileSize - 1) : fileSize - 1;
+      const chunksize = end - start + 1;
+      res.writeHead(206, {
+        'Content-Range': `bytes ${start}-${end}/${fileSize}`,
+        'Accept-Ranges': 'bytes',
+        'Content-Length': chunksize,
+        'Content-Type': 'video/mp4',
+      });
+      fs.createReadStream(videoPath, { start, end }).pipe(res);
+    } else {
+      res.writeHead(200, {
+        'Content-Length': fileSize,
+        'Content-Type': 'video/mp4',
+        'Accept-Ranges': 'bytes',
+      });
+      fs.createReadStream(videoPath).pipe(res);
+    }
+  } catch (error) {
+    next(error);
+  }
+};
+
 // @desc    Get video details
 // @route   GET /api/videos/:id
 // @access  Private

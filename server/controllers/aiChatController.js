@@ -29,7 +29,7 @@ const buildCourseContext = (courses = []) => {
     .map((course, index) => {
       const price = formatCurrency(course.price);
       const rating = course.rating ? `${course.rating.toFixed(1)}/5 (${course.reviewCount || 0} đánh giá)` : 'Chưa có đánh giá';
-      return `${index + 1}. ${course.title} – cấp độ ${course.level || 'không xác định'} – danh mục ${course.category || 'khác'} – giá ${price}. Mô tả: ${course.description?.slice(0, 200) || 'Chưa cập nhật.'} | Đánh giá: ${rating}`;
+      return `${index + 1}. ${course.title} | cấp độ: ${course.level || 'mọi trình độ'} | danh mục: ${course.category || 'khác'} | giá: ${price} | đánh giá: ${rating}`;
     })
     .join('\n');
 };
@@ -37,13 +37,14 @@ const buildCourseContext = (courses = []) => {
 const buildFallbackReply = (message = '', courses = []) => {
   if (courses.length) {
     const suggestions = courses
+      .slice(0, 3)
       .map((course) => `• ${course.title} (${course.level || 'mọi trình độ'}) – ${formatCurrency(course.price)}`)
       .join('\n');
 
-    return `Hiện trợ lý AI đang bận, nhưng mình vẫn có thể gợi ý một số khóa học phù hợp với nhu cầu của bạn:\n${suggestions}\nBạn muốn tìm hiểu thêm về khóa nào, hoặc cần tư vấn chủ đề cụ thể nào không?`;
+    return `Mình gợi ý nhanh vài khóa liên quan:\n${suggestions}\nBạn muốn xem khóa nào chi tiết hơn?`;
   }
 
-  return 'Trợ lý AI đang bảo trì. Bạn có thể xem danh sách khóa học trong trang chính hoặc thử lại sau nhé!';
+  return 'Hiện chưa có khóa phù hợp, bạn thử tìm với từ khóa khác nhé!';
 };
 
 exports.studentAssistantChat = async (req, res) => {
@@ -56,8 +57,16 @@ exports.studentAssistantChat = async (req, res) => {
 
     let referenceCourses = [];
 
+    const baseVisibility = {
+      status: 'published',
+      $or: [
+        { videos: { $exists: true, $not: { $size: 0 } } },
+        { quizzes: { $exists: true, $not: { $size: 0 } } },
+      ],
+    };
+
     if (courseId && mongoose.Types.ObjectId.isValid(courseId)) {
-      const course = await Course.findById(courseId)
+      const course = await Course.findOne({ _id: courseId, ...baseVisibility })
         .select('title description level category price rating reviewCount')
         .lean();
       if (course) {
@@ -66,11 +75,31 @@ exports.studentAssistantChat = async (req, res) => {
     }
 
     if (!referenceCourses.length) {
-      referenceCourses = await Course.find({ status: 'published' })
+      const keywords = message
+        .split(/\s+/)
+        .map((w) => w.trim())
+        .filter((w) => w.length >= 2 && isNaN(Number(w)));
+
+      const regex = keywords.length ? new RegExp(keywords.join('|'), 'i') : null;
+
+      const matchQuery = regex
+        ? { ...baseVisibility, $or: [{ title: regex }, { description: regex }, { category: regex }] }
+        : baseVisibility;
+
+      referenceCourses = await Course.find(matchQuery)
         .select('title description level category price rating reviewCount')
         .sort({ rating: -1, reviewCount: -1, createdAt: -1 })
-        .limit(5)
+        .limit(3)
         .lean();
+
+      // If no match, fallback to top picks
+      if (!referenceCourses.length) {
+        referenceCourses = await Course.find(baseVisibility)
+          .select('title description level category price rating reviewCount')
+          .sort({ rating: -1, reviewCount: -1, createdAt: -1 })
+          .limit(3)
+          .lean();
+      }
     }
 
     const courseContext = buildCourseContext(referenceCourses);
@@ -94,7 +123,7 @@ Lịch sử trò chuyện:
 ${historyText || 'Chưa có lịch sử.'}
 
 Câu hỏi hiện tại của người dùng: "${message}".
-Hãy đưa ra câu trả lời ngắn gọn (2-3 đoạn), ưu tiên bullet nếu phù hợp, và luôn đề xuất khóa học tương ứng khi có thể.`;
+      Yêu cầu trả lời: ngắn gọn (tối đa 1 đoạn ngắn và 3 bullet), tập trung trực tiếp vào câu hỏi, chỉ gợi ý các khóa liên quan nhất từ danh sách trên (tối đa 3 mục), không dài dòng.`;
 
         const result = await model.generateContent(prompt);
         reply = result?.response?.text()?.trim();

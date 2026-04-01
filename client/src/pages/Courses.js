@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { courseService } from '../services/apiService';
+import { courseService, userService } from '../services/apiService';
 import Layout from '../components/Layout';
 import './Courses.css';
 
@@ -7,6 +7,7 @@ function Courses() {
   const [courses, setCourses] = useState([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState('all'); // 'all', 'pending', 'published', 'rejected'
+  const [instructorFilter, setInstructorFilter] = useState('');
   const [showModal, setShowModal] = useState(false);
   const [editingCourse, setEditingCourse] = useState(null);
   const [formData, setFormData] = useState({
@@ -14,27 +15,46 @@ function Courses() {
     description: '',
     price: '',
     category: '',
- level: 'beginner',
+    level: 'beginner',
+    thumbnail: '',
+    instructorId: ''
   });
+  const [instructors, setInstructors] = useState([]);
 
   const [showStudentsModal, setShowStudentsModal] = useState(false);
   const [courseStudents, setCourseStudents] = useState([]);
   const [selectedCourseTitle, setSelectedCourseTitle] = useState('');
 
+  const [showDetailModal, setShowDetailModal] = useState(false);
+  const [detailCourse, setDetailCourse] = useState(null);
+  const [detailReviews, setDetailReviews] = useState([]);
+  const [detailLoading, setDetailLoading] = useState(false);
+
   useEffect(() => {
     fetchCourses();
   }, []);
 
-  const fetchCourses = async () => {
+  const fetchCourses = async (name = instructorFilter) => {
     try {
-      const data = await courseService.getAdminAll();
-      setCourses(data.data || []);
+      setLoading(true);
+      const term = (name || '').trim();
+      const [courseRes, userRes] = await Promise.all([
+        courseService.getAdminAll({ instructorName: term || undefined }),
+        userService.getAll()
+      ]);
+      const instructorList = (userRes.data || []).filter(u => u.role === 'instructor');
+      setInstructors(instructorList);
+      setCourses(courseRes.data || []);
     } catch (error) {
       console.error('Error fetching courses:', error);
       alert('Không thể tải danh sách khóa học');
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleSearchInstructor = () => {
+    fetchCourses(instructorFilter.trim());
   };
 
   const handleInputChange = (e) => {
@@ -83,6 +103,8 @@ function Courses() {
       price: course.price,
       category: course.category || '',
       level: course.level || 'beginner',
+      thumbnail: course.thumbnail || '',
+      instructorId: course.instructor?._id || ''
     });
     setShowModal(true);
   };
@@ -112,6 +134,34 @@ function Courses() {
     }
   };
 
+  const handleViewDetails = async (course) => {
+    setDetailCourse(course);
+    setDetailLoading(true);
+    setShowDetailModal(true);
+    try {
+      const res = await courseService.getReviews(course._id);
+      const reviewsData = res?.data || [];
+      setDetailReviews(Array.isArray(reviewsData) ? reviewsData : reviewsData.data || []);
+    } catch (error) {
+      console.error('Error loading reviews:', error);
+      alert('Không thể tải bình luận');
+    } finally {
+      setDetailLoading(false);
+    }
+  };
+
+  const handleDeleteReview = async (courseId, reviewId) => {
+    if (!window.confirm('Xóa bình luận này?')) return;
+    try {
+      await courseService.deleteReview(courseId, reviewId);
+      setDetailReviews((prev) => prev.filter((r) => r._id !== reviewId));
+      alert('Đã xóa bình luận');
+    } catch (error) {
+      console.error('Error deleting review:', error);
+      alert('Không thể xóa bình luận');
+    }
+  };
+
   const resetForm = () => {
     setFormData({
       title: '',
@@ -119,6 +169,8 @@ function Courses() {
       price: '',
       category: '',
       level: 'beginner',
+      thumbnail: '',
+      instructorId: instructors[0]?._id || ''
     });
   };
 
@@ -129,8 +181,11 @@ function Courses() {
   };
 
   const filteredCourses = courses.filter(c => {
-    if (filter === 'all') return true;
-    return c.status === filter;
+    if (filter !== 'all' && c.status !== filter) return false;
+    const term = instructorFilter.trim();
+    if (!term) return true;
+    const name = c.instructor?.name || '';
+    return name.toLowerCase().includes(term.toLowerCase());
   });
 
   const getStatusBadge = (status) => {
@@ -138,6 +193,7 @@ function Courses() {
       published: { icon: '✅', text: 'Đã xuất bản', class: 'published' },
       pending: { icon: '⏳', text: 'Chờ duyệt', class: 'pending' },
       rejected: { icon: '❌', text: 'Từ chối', class: 'rejected' },
+      disabled: { icon: '🚫', text: 'Đã vô hiệu', class: 'rejected' },
     };
     return badges[status] || badges.pending; // Default if old DB
   };
@@ -155,6 +211,28 @@ function Courses() {
       <div className="courses-page">
         <div className="page-header">
           <h1>📚 Quản lý Khóa học</h1>
+          <button className="btn-create" onClick={openCreateModal}>
+            ➕ Tạo khóa học
+          </button>
+        </div>
+
+        <div className="filters-row" style={{ display: 'flex', gap: '12px', alignItems: 'center', marginBottom: '16px' }}>
+          <div>
+            <label className="filter-label">Lọc theo giảng viên</label>
+            <input
+              type="text"
+              placeholder="Nhập tên giảng viên..."
+              value={instructorFilter}
+              onChange={(e) => setInstructorFilter(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') handleSearchInstructor();
+              }}
+              style={{ minWidth: '240px' }}
+            />
+          </div>
+          <button className="btn-search" onClick={handleSearchInstructor}>
+            🔍 Tìm kiếm
+          </button>
         </div>
 
       <div className="filter-tabs" style={{ marginBottom: '20px' }}>
@@ -182,6 +260,12 @@ function Courses() {
         >
           Từ chối ({courses.filter(c => c.status === 'rejected').length})
         </button>
+        <button
+          className={filter === 'disabled' ? 'active' : ''}
+          onClick={() => setFilter('disabled')}
+        >
+          Vô hiệu ({courses.filter(c => c.status === 'disabled').length})
+        </button>
       </div>
 
       <div className="courses-grid">
@@ -190,6 +274,14 @@ function Courses() {
           
           return (
             <div key={course._id} className="course-card">
+              <div className="course-thumb" style={{ width: '100%', marginBottom: '12px' }}>
+                <img
+                  src={course.thumbnail || 'https://via.placeholder.com/600x300?text=No+image'}
+                  alt={course.title}
+                  style={{ width: '100%', height: '180px', objectFit: 'cover', borderRadius: '12px', background: '#f3f4f6' }}
+                  onError={(e) => { e.currentTarget.src = 'https://via.placeholder.com/600x300?text=No+image'; }}
+                />
+              </div>
               <div className="course-header">
                 <h3>{course.title}</h3>
                 <span className="course-level">{course.level}</span>
@@ -217,33 +309,25 @@ function Courses() {
               <div className="course-category">
                 📂 {course.category || 'Chưa phân loại'}
               </div>
-              <div className="course-videos">
-                🎬 {course.videos?.length || 0} videos
-              </div>
 
-              <div className="course-approval-actions" style={{display: 'flex', gap: '10px', marginTop: '10px', marginBottom: '10px'}}>
-                {(course.status === 'pending' || course.status === 'rejected') && (
-                  <button className="btn-approve" style={{flex: 1, padding: '8px', background: '#22c55e', color: 'white', border: 'none', borderRadius: '4px'}} onClick={() => handleUpdateStatus(course._id, 'published')}>
-                    ✅ Duyệt
-                  </button>
-                )}
-                {course.status === 'pending' && (
-                  <button className="btn-reject" style={{flex: 1, padding: '8px', background: '#ef4444', color: 'white', border: 'none', borderRadius: '4px'}} onClick={() => handleUpdateStatus(course._id, 'rejected')}>
-                    ❌ Từ chối
-                  </button>
-                )}
-              </div>
-
-              <div className="course-actions">
-                <button className="btn-view" onClick={() => handleViewStudents(course)}>
+              <div className="card-actions" style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', marginTop: '10px' }}>
+                <button className="btn-secondary" onClick={() => handleViewDetails(course)}>
+                  👁️ Xem chi tiết
+                </button>
+                <button className="btn-secondary" onClick={() => handleViewStudents(course)}>
                   👥 Học viên
                 </button>
-                <button className="btn-edit" onClick={() => handleEdit(course)}>
-                  ✏️ Sửa
-                </button>
-                <button className="btn-delete" onClick={() => handleDelete(course._id)}>
-                  🗑️ Xóa
-                </button>
+                <button className="btn-edit" onClick={() => handleEdit(course)}>✏️ Sửa</button>
+                <button className="btn-delete" onClick={() => handleDelete(course._id)}>🗑️ Xóa</button>
+                <select
+                  value={course.status || 'pending'}
+                  onChange={(e) => handleUpdateStatus(course._id, e.target.value)}
+                >
+                  <option value="pending">Chờ duyệt</option>
+                  <option value="published">Đã xuất bản</option>
+                  <option value="rejected">Từ chối</option>
+                  <option value="disabled">Vô hiệu</option>
+                </select>
               </div>
             </div>
           );
@@ -253,6 +337,83 @@ function Courses() {
       {filteredCourses.length === 0 && (
         <div className="empty-state">
           <p>Chưa có khóa học nào</p>
+        </div>
+      )}
+
+      {showDetailModal && detailCourse && (
+        <div
+          className="modal-overlay"
+          style={{
+            position: 'fixed',
+            inset: 0,
+            background: 'rgba(0,0,0,0.55)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 2000,
+            padding: '20px'
+          }}
+        >
+          <div
+            className="modal-content"
+            style={{
+              background: '#fff',
+              borderRadius: '10px',
+              maxWidth: '800px',
+              width: '100%',
+              maxHeight: '90vh',
+              overflowY: 'auto',
+              padding: '20px',
+              boxShadow: '0 10px 30px rgba(0,0,0,0.2)'
+            }}
+          >
+              <div className="modal-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '12px' }}>
+                <h2 style={{ margin: 0 }}>Chi tiết khóa học</h2>
+                <button className="modal-close" onClick={() => setShowDetailModal(false)} style={{ fontSize: '18px' }}>×</button>
+              </div>
+            <div className="modal-body" style={{ display: 'grid', gap: '8px' }}>
+              <h3>{detailCourse.title}</h3>
+              <p><strong>Giảng viên:</strong> {detailCourse.instructor?.name}</p>
+              <p><strong>Giá:</strong> {detailCourse.price?.toLocaleString?.('vi-VN')}đ</p>
+              <p><strong>Trạng thái:</strong> {detailCourse.status || 'pending'}</p>
+              <p><strong>Mô tả:</strong> {detailCourse.description}</p>
+              <p><strong>Số video:</strong> {detailCourse.videos?.length || 0}</p>
+              <p><strong>Số bài tập:</strong> {detailCourse.quizzes?.length || 0}</p>
+
+              <h4 style={{ marginTop: '12px' }}>Bình luận / đánh giá</h4>
+              {detailLoading ? (
+                <p>Đang tải...</p>
+              ) : detailReviews.length === 0 ? (
+                <p>Chưa có bình luận.</p>
+              ) : (
+                <div className="reviews-list">
+                  {detailReviews.map((rev) => (
+                    <div key={rev._id} className="review-item">
+                      <div className="review-header-row">
+                        <div>
+                          <strong>{rev.student?.name || 'Học viên'}</strong>
+                          <span style={{ marginLeft: '8px' }}>⭐ {rev.rating}</span>
+                        </div>
+                        <button className="btn-delete" onClick={() => handleDeleteReview(detailCourse._id, rev._id)}>🗑️ Xóa</button>
+                      </div>
+                      {rev.comment && <p>{rev.comment}</p>}
+                      {rev.reply?.text && (
+                        <div className="review-reply">
+                          <strong>Phản hồi:</strong> {rev.reply.text}
+                        </div>
+                      )}
+                      <div className="review-meta">
+                        {rev.createdAt ? new Date(rev.createdAt).toLocaleString('vi-VN') : ''}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+            <div className="modal-footer">
+              <button className="btn-secondary" onClick={() => setShowDetailModal(false)}>Đóng</button>
+            </div>
+          </div>
         </div>
       )}
 
@@ -323,6 +484,27 @@ function Courses() {
                   <option value="beginner">Beginner</option>
                   <option value="intermediate">Intermediate</option>
                   <option value="advanced">Advanced</option>
+                </select>
+              </div>
+
+              <div className="form-group">
+                <label>Ảnh minh họa (URL)</label>
+                <input
+                  type="url"
+                  name="thumbnail"
+                  placeholder="https://..."
+                  value={formData.thumbnail}
+                  onChange={handleInputChange}
+                />
+              </div>
+
+              <div className="form-group">
+                <label>Giảng viên</label>
+                <select name="instructorId" value={formData.instructorId} onChange={handleInputChange} required>
+                  <option value="" disabled>-- Chọn giảng viên --</option>
+                  {instructors.map(inst => (
+                    <option key={inst._id} value={inst._id}>{inst.name} ({inst.email})</option>
+                  ))}
                 </select>
               </div>
 

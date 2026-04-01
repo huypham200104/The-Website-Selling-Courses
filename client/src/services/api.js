@@ -38,6 +38,7 @@ api.interceptors.response.use(
 
 // Auth APIs
 export const authAPI = {
+  register: (payload) => api.post('/auth/register', payload),
   login: (email, password) => api.post('/auth/login', { email, password }),
   getMe: () => api.get('/auth/me'),
   logout: () => api.post('/auth/logout'),
@@ -90,6 +91,7 @@ export const orderAPI = {
   getOne: (id) => api.get(`/orders/${id}`),
   create: (data) => api.post('/orders', data),
   update: (id, data) => api.put(`/orders/${id}`, data),
+  summary: () => api.get('/orders/summary'),
 };
 
 // Health check

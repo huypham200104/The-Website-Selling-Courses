@@ -31,9 +31,21 @@ const quizResultSchema = new mongoose.Schema({
     type: Number,
     required: true
   },
+  status: {
+    type: String,
+    enum: ['pending', 'graded'],
+    default: 'pending'
+  },
+  gradedBy: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'User'
+  },
+  gradedAt: {
+    type: Date
+  },
   answers: {
     type: Map,
-    of: Number, // Maps question index to chosen option index
+    of: mongoose.Schema.Types.Mixed, // allow number for trắc nghiệm, string/link for tự luận
     default: {}
   },
   createdAt: {

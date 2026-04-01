@@ -42,6 +42,11 @@ export const courseService = {
     return response.data;
   },
 
+  getMine: async () => {
+    const response = await api.get('/courses/instructor/mine');
+    return response.data;
+  },
+
   getOne: async (id) => {
     const response = await api.get(`/courses/${id}`);
     return response.data;
@@ -77,8 +82,8 @@ export const courseService = {
     return response.data;
   },
 
-  getAdminAll: async () => {
-    const response = await api.get('/courses/admin/all');
+  getAdminAll: async (params = {}) => {
+    const response = await api.get('/courses/admin/all', { params });
     return response.data;
   },
 
@@ -92,8 +97,18 @@ export const courseService = {
     return response.data;
   },
 
+  reportCourse: async (id, payload) => {
+    const response = await api.post(`/courses/${id}/report`, payload);
+    return response.data;
+  },
+
   getReviews: async (id) => {
     const response = await api.get(`/courses/${id}/reviews`);
+    return response.data;
+  },
+
+  getReports: async () => {
+    const response = await api.get('/courses/reports');
     return response.data;
   },
 
@@ -106,6 +121,11 @@ export const courseService = {
     const response = await api.delete(`/courses/${courseId}/reviews/${reviewId}`);
     return response.data;
   },
+
+  getPreviewVideo: async (courseId) => {
+    const response = await api.get(`/courses/${courseId}/preview-video`);
+    return response.data;
+  },
 };
 
 // User Services (Admin only)
@@ -113,6 +133,11 @@ export const userService = {
   getAll: async () => {
     // This would need a new endpoint in backend
     const response = await api.get('/users');
+    return response.data;
+  },
+
+  create: async (payload) => {
+    const response = await api.post('/users', payload);
     return response.data;
   },
 
@@ -162,6 +187,19 @@ export const orderService = {
       headers: {
         'Content-Type': 'multipart/form-data',
       },
+    });
+    return response.data;
+  },
+
+  getSummary: async () => {
+    const response = await api.get('/orders/summary');
+    return response.data;
+  },
+
+  // Create order + upload proof in a single request (student confirms payment)
+  submitWithProof: async (formData) => {
+    const response = await api.post('/orders/submit', formData, {
+      headers: { 'Content-Type': 'multipart/form-data' },
     });
     return response.data;
   },
@@ -217,5 +255,18 @@ export const quizService = {
   getCourseResults: async (courseId) => {
     const response = await api.get(`/quizzes/course/${courseId}`);
     return response.data;
+  },
+
+  gradeResult: async (resultId, score) => {
+    const response = await api.patch(`/quizzes/${resultId}/grade`, { score });
+    return response.data;
   }
+};
+
+// Certificate Services
+export const certificateService = {
+  download: async (courseId) => {
+    const response = await api.get(`/certificates/${courseId}`, { responseType: 'blob' });
+    return response;
+  },
 };

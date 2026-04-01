@@ -59,6 +59,20 @@ const courseSchema = new mongoose.Schema({
       trim: true,
       maxlength: 1000
     },
+    reply: {
+      text: {
+        type: String,
+        trim: true,
+        maxlength: 1000
+      },
+      repliedBy: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'User'
+      },
+      repliedAt: {
+        type: Date
+      }
+    },
     createdAt: {
       type: Date,
       default: Date.now
@@ -74,7 +88,7 @@ const courseSchema = new mongoose.Schema({
   },
   status: {
     type: String,
-    enum: ['pending', 'published', 'rejected'],
+    enum: ['pending', 'published', 'rejected', 'disabled'],
     default: 'pending' // New courses need admin approval
   },
   createdAt: {

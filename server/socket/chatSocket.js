@@ -27,6 +27,21 @@ async function buildEligiblePartnerMap(user) {
         }
       }
     }
+
+    // allow instructors to chat with admins
+    const admins = await User.find({ role: 'admin' }).select('name email avatar role');
+    for (const admin of admins) {
+      const aid = String(admin._id);
+      if (!partnerMap.has(aid)) {
+        partnerMap.set(aid, {
+          _id: aid,
+          name: admin.name,
+          email: admin.email,
+          avatar: admin.avatar || '',
+          role: admin.role,
+        });
+      }
+    }
   } else if (user.role === 'student') {
     const courses = await Course.find({ students: userId })
       .select('title instructor')
@@ -35,6 +50,21 @@ async function buildEligiblePartnerMap(user) {
     for (const course of courses) {
       const instructor = course.instructor;
       if (!instructor || instructor.role !== 'instructor') continue;
+      const iid = String(instructor._id);
+      if (!partnerMap.has(iid)) {
+        partnerMap.set(iid, {
+          _id: iid,
+          name: instructor.name,
+          email: instructor.email,
+          avatar: instructor.avatar || '',
+          role: instructor.role,
+        });
+      }
+    }
+  } else if (user.role === 'admin') {
+    // admin can chat with all instructors
+    const instructors = await User.find({ role: 'instructor' }).select('name email avatar role');
+    for (const instructor of instructors) {
       const iid = String(instructor._id);
       if (!partnerMap.has(iid)) {
         partnerMap.set(iid, {
@@ -66,7 +96,7 @@ function initChatSocket(io) {
       const decoded = jwt.verify(token, process.env.JWT_SECRET);
       const user = await User.findById(decoded.id).select('_id name email role avatar');
       if (!user) return next(new Error('Unauthorized'));
-      if (!['instructor', 'student'].includes(user.role)) {
+      if (!['instructor', 'student', 'admin'].includes(user.role)) {
         return next(new Error('Forbidden'));
       }
 

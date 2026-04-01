@@ -15,7 +15,8 @@ function StudentHeader({ customActiveTab, onTabChange }) {
   const [counts, setCounts] = useState({
     pending: 0,
     favorites: 0,
-    myCourses: 0
+    myCourses: 0,
+    orders: 0
   });
 
   // Determine active tab
@@ -34,29 +35,32 @@ function StudentHeader({ customActiveTab, onTabChange }) {
           favCount = userData.favorites.length;
         }
 
-        const [coursesRes, ordersRes] = await Promise.all([
+        const [coursesRes, ordersRes, summaryRes] = await Promise.all([
           courseService.getAll(),
-          orderService.getAll()
+          orderService.getAll(),
+          orderService.getSummary()
         ]);
         
         const allCourses = coursesRes.data || [];
         const allOrders = ordersRes.data || [];
+        const summaryData = summaryRes?.data || {};
         
-        const purchased = allCourses.filter(course =>
-          course.students?.some(s => s._id === userData?._id)
-        );
+        const purchased = (summaryData.courses && summaryData.courses.length > 0)
+          ? summaryData.courses
+          : allCourses.filter(course => course.students?.some(s => s._id === userData?._id));
         
         const pendingIds = allOrders
           .filter(order => order.status === 'pending')
           .map(order => order.courseId?._id || order.courseId)
           .filter(id => id && allCourses.some(c => c._id === id));
-          
+        
         const uniquePending = [...new Set(pendingIds)];
 
         setCounts({
           pending: uniquePending.length,
           favorites: favCount,
-          myCourses: purchased.length
+          myCourses: purchased.length,
+          orders: summaryData.orders?.length || 0
         });
       } catch (error) {
         console.error('Error fetching global counts for header:', error);
@@ -120,6 +124,12 @@ function StudentHeader({ customActiveTab, onTabChange }) {
             >
               {t('student.header.tabs.favorites', { count: counts.favorites })}
             </button>
+            <button
+              className={`nav-link ${activeTab === 'orders' && location.pathname === '/student/dashboard' ? 'active' : ''}`}
+              onClick={() => handleTabClick('orders')}
+            >
+              Đơn hàng ({counts.orders})
+            </button>
           </nav>
         </div>
 
@@ -161,6 +171,12 @@ function StudentHeader({ customActiveTab, onTabChange }) {
                 onClick={() => handleTabClick('my-courses')}
               >
                 {t('student.header.menu.myCourses', { count: counts.myCourses })}
+              </button>
+              <button 
+                className={`dropdown-item ${activeTab === 'orders' && location.pathname === '/student/dashboard' ? 'active-dropdown' : ''}`} 
+                onClick={() => handleTabClick('orders')}
+              >
+                Đơn hàng của tôi
               </button>
               <button 
                 className={`dropdown-item ${activeTab === 'profile' && location.pathname === '/student/dashboard' ? 'active-dropdown' : ''}`} 

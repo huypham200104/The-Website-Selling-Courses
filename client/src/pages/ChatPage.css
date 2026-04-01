@@ -67,6 +67,38 @@
   box-shadow: var(--chat-shadow);
 }
 
+.chat-box-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.chat-messenger-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 12px;
+  border-radius: 12px;
+  border: 1px solid var(--chat-primary);
+  background: linear-gradient(135deg, #4f46e5, #7c3aed);
+  color: #fff;
+  font-weight: 600;
+  cursor: pointer;
+  transition: transform 0.1s ease, box-shadow 0.2s ease, opacity 0.2s ease;
+  box-shadow: var(--chat-shadow);
+}
+
+.chat-messenger-btn:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 8px 24px rgba(79, 70, 229, 0.16);
+}
+
+.chat-messenger-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+  box-shadow: none;
+}
+
 .connection-dot {
   width: 10px;
   height: 10px;

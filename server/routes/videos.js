@@ -4,6 +4,7 @@ const {
   uploadChunk,
   mergeChunks,
   streamVideo,
+  previewStreamVideo,
   getStreamToken,
   getVideo,
   deleteVideo
@@ -20,6 +21,9 @@ router.post('/merge-chunks', auth, roleCheck('instructor', 'admin'), mergeChunks
 
 // Get a short-lived stream token (requires normal JWT auth)
 router.get('/:id/stream-token', auth, getStreamToken);
+
+// Preview stream for checkout page (no enrollment check)
+router.get('/:id/preview-stream', auth, previewStreamVideo);
 
 // Stream video — authenticated via Authorization header (MSE fetch)
 router.get('/:id/stream', auth, streamVideo);

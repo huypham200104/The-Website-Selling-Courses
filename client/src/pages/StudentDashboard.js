@@ -15,11 +15,14 @@ function StudentDashboard() {
   const [courses, setCourses] = useState([]);
   const [myCourses, setMyCourses] = useState([]);
   const [pendingCourseIds, setPendingCourseIds] = useState([]);
+  const [purchaseSummary, setPurchaseSummary] = useState({ totalSpent: 0, orders: [], courses: [] });
   const [favorites, setFavorites] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [page, setPage] = useState(1);
+  const pageSize = 9;
   
   const [searchParams, setSearchParams] = useSearchParams();
-  const activeTab = searchParams.get('tab') || 'all'; // 'all', 'my-courses', 'pending', 'favorites', 'profile'
+  const activeTab = searchParams.get('tab') || 'all'; // 'all', 'my-courses', 'pending', 'favorites', 'orders', 'profile'
   
   const setActiveTab = (tab) => {
     setSearchParams({ tab });
@@ -43,43 +46,66 @@ function StudentDashboard() {
       }));
     }
   }, [user]);
-
+  
   useEffect(() => {
     fetchCourses();
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // Reset to page 1 when tab changes
+  useEffect(() => {
+    if (activeTab === 'all') {
+      setPage(1);
+    }
+  }, [activeTab]);
 
   const fetchCourses = async () => {
     try {
-      const response = await courseService.getAll();
-      const allCourses = response.data || [];
-      
+      const [coursesRes, ordersRes, summaryRes, currentUser] = await Promise.all([
+        courseService.getAll(),
+        orderService.getAll(),
+        orderService.getSummary(),
+        authService.getCurrentUser()
+      ]);
+
+      const allCourses = Array.isArray(coursesRes?.data)
+        ? coursesRes.data
+        : (Array.isArray(coursesRes?.data?.data) ? coursesRes.data.data : []);
+
+      const allOrders = Array.isArray(ordersRes?.data) ? ordersRes.data : [];
+      const summaryData = summaryRes?.data || {};
+
       setCourses(allCourses);
-      
-      // Filter courses student is enrolled in
-      const purchased = allCourses.filter(course =>
-        course.students?.some(s => s._id === user?._id)
-      );
+      setPurchaseSummary({
+        totalSpent: summaryData.totalSpent || 0,
+        orders: summaryData.orders || [],
+        courses: summaryData.courses || []
+      });
+
+      // Prefer backend-enrolled list; fallback to derive from course.students
+      const purchased = (Array.isArray(summaryData.courses) && summaryData.courses.length > 0)
+        ? summaryData.courses
+        : allCourses.filter(course => Array.isArray(course.students) && course.students.some(s => s._id === user?._id));
       setMyCourses(purchased);
 
-      // Fetch pending orders
-      const ordersRes = await orderService.getAll();
-      const allOrders = ordersRes.data || [];
+      // Fetch pending orders for UI status
       const pendingIds = allOrders
-        .filter(order => order.status === 'pending')
+        .filter(order => ['pending', 'initiated'].includes(order.status))
         .map(order => order.courseId?._id || order.courseId)
-        .filter(id => id && allCourses.some(c => c._id === id));
-        
-      // Remove duplicates in case user clicked checkout multiple times
+        .filter(id => id && allCourses.some(c => c?._id === id));
       setPendingCourseIds([...new Set(pendingIds)]);
       
       // Fetch user to get favorites
-      const currentUser = await authService.getCurrentUser();
       if (currentUser && currentUser.favorites) {
         const favIds = currentUser.favorites
-          .map(fav => typeof fav === 'string' ? fav : fav._id)
-          .filter(id => id && allCourses.some(c => c._id === id));
+          .map(fav => typeof fav === 'string' ? fav : fav?._id)
+          .filter(id => id && allCourses.some(c => c?._id === id));
         setFavorites([...new Set(favIds)]);
+      }
+      // Ensure page stays in range after loading data
+      const totalPages = Math.max(1, Math.ceil(allCourses.length / pageSize));
+      if (page > totalPages) {
+        setPage(totalPages);
       }
     } catch (error) {
       console.error('Error fetching courses:', error);
@@ -166,9 +192,20 @@ function StudentDashboard() {
   const getHeadingKey = () => {
     if (activeTab === 'profile') return 'student.dashboard.heading.profile';
     if (activeTab === 'my-courses') return 'student.dashboard.heading.myCourses';
+    if (activeTab === 'orders') return 'student.dashboard.heading.orders';
     if (activeTab === 'pending') return 'student.dashboard.heading.pending';
     if (activeTab === 'favorites') return 'student.dashboard.heading.favorites';
     return 'student.dashboard.heading.discover';
+  };
+
+  const getStatusBadge = (status) => {
+    const badges = {
+      completed: { icon: '✅', text: 'Hoàn thành', className: 'status-completed' },
+      pending: { icon: '⏳', text: 'Chờ duyệt', className: 'status-pending' },
+      initiated: { icon: '📨', text: 'Chưa gửi minh chứng', className: 'status-pending' },
+      failed: { icon: '❌', text: 'Thất bại', className: 'status-failed' },
+    };
+    return badges[status] || badges.pending;
   };
 
   if (loading) {
@@ -190,13 +227,18 @@ function StudentDashboard() {
         <div className="courses-container">
           {activeTab === 'all' && (
             <div className="courses-grid">
-              {courses.map((course) => {
-                const isPurchased = course.students?.some(s => s._id === user?._id);
-                const isPending = pendingCourseIds.includes(course._id);
-                const isFavorited = favorites.includes(course._id);
-                
-                return (
-                  <div key={course._id} className="course-card">
+              {(() => {
+                const purchasedIds = new Set((myCourses || []).map(c => c._id || c));
+                const start = (page - 1) * pageSize;
+                const paginatedCourses = courses.slice(start, start + pageSize);
+
+                return paginatedCourses.map((course) => {
+                  const isPurchased = purchasedIds.has(course._id);
+                  const isPending = pendingCourseIds.includes(course._id);
+                  const isFavorited = favorites.includes(course._id);
+                  
+                  return (
+                    <div key={course._id} className="course-card">
                     <div className="course-image-wrapper">
                       <img src={course.thumbnail} alt={course.title} />
                       <button 
@@ -212,7 +254,7 @@ function StudentDashboard() {
                       <h3>{course.title}</h3>
                       <p className="course-description">{course.description}</p>
                       <div className="course-meta">
-                        <span>👨‍🏫 {course.instructor.name}</span>
+                        <span>👨‍🏫 {course.instructor?.name || 'Giảng viên'}</span>
                         <span>⭐ {course.rating}</span>
                       </div>
                       {isPurchased ? (
@@ -245,9 +287,29 @@ function StudentDashboard() {
                         </div>
                       )}
                     </div>
-                  </div>
-                );
-              })}
+                    </div>
+                  );
+                });
+              })()}
+              {courses.length > pageSize && (
+                <div className="pagination" style={{ display: 'flex', justifyContent: 'center', gap: '12px', marginTop: '20px', alignItems: 'center' }}>
+                  <button
+                    className="btn-secondary"
+                    onClick={() => setPage((prev) => Math.max(1, prev - 1))}
+                    disabled={page === 1}
+                  >
+                    ← Trước
+                  </button>
+                  <span>Trang {page} / {Math.max(1, Math.ceil(courses.length / pageSize))}</span>
+                  <button
+                    className="btn-secondary"
+                    onClick={() => setPage((prev) => Math.min(Math.max(1, Math.ceil(courses.length / pageSize)), prev + 1))}
+                    disabled={page >= Math.ceil(courses.length / pageSize)}
+                  >
+                    Sau →
+                  </button>
+                </div>
+              )}
             </div>
           )}
 
@@ -265,7 +327,7 @@ function StudentDashboard() {
                       <h3>{course.title}</h3>
                       <p className="course-description">{course.description}</p>
                       <div className="course-meta">
-                        <span>👨‍🏫 {course.instructor.name}</span>
+                        <span>👨‍🏫 {course.instructor?.name || 'Giảng viên'}</span>
                         <span>⭐ {course.rating}</span>
                       </div>
                       <button className="btn-pending" onClick={() => navigate(`/student/checkout/${course._id}`)}>
@@ -350,6 +412,60 @@ function StudentDashboard() {
             </div>
           )}
 
+          {activeTab === 'orders' && (
+            <div className="orders-tab">
+              <div className="orders-summary-grid">
+                <div className="summary-card">
+                  <p>Đã chi</p>
+                  <h3>{formatCurrency(purchaseSummary.totalSpent || 0)}</h3>
+                </div>
+                <div className="summary-card">
+                  <p>Khóa học đã mua</p>
+                  <h3>{purchaseSummary.courses.length}</h3>
+                </div>
+                <div className="summary-card">
+                  <p>Đơn hoàn thành</p>
+                  <h3>{purchaseSummary.orders.length}</h3>
+                </div>
+              </div>
+
+              <div className="orders-list">
+                {(purchaseSummary.orders || []).length === 0 ? (
+                  <div className="empty-state">
+                    <p>Bạn chưa có đơn hàng hoàn thành nào.</p>
+                    <button onClick={() => setActiveTab('all')} className="btn-browse">
+                      Khám phá khóa học
+                    </button>
+                  </div>
+                ) : (
+                  purchaseSummary.orders.map(order => {
+                    const badge = getStatusBadge(order.status);
+                    return (
+                      <div className="order-item" key={order._id}>
+                        <div className="order-main">
+                          <div>
+                            <div className="order-title">{order.courseId?.title || 'Khóa học'}</div>
+                            <div className="order-meta">
+                              <span>Mã đơn: <code>{order._id.slice(-8)}</code></span>
+                              <span>Ngày: {new Date(order.createdAt).toLocaleDateString('vi-VN')}</span>
+                            </div>
+                          </div>
+                          <div className={`order-status ${badge.className}`}>
+                            {badge.icon} {badge.text}
+                          </div>
+                        </div>
+                        <div className="order-footer">
+                          <span className="order-amount">{formatCurrency(order.amount || order.courseId?.price || 0)}</span>
+                          <span className="order-method">{order.paymentMethod || 'Thanh toán'}</span>
+                        </div>
+                      </div>
+                    );
+                  })
+                )}
+              </div>
+            </div>
+          )}
+
           {activeTab === 'my-courses' && (
             <div className="courses-grid">
               {myCourses.length === 0 ? (
@@ -367,10 +483,16 @@ function StudentDashboard() {
                       <h3>{course.title}</h3>
                       <p className="course-description">{course.description}</p>
                       <div className="course-meta">
-                        <span>🎬 {course.videos.length} videos</span>
+                        <span>🎬 {course.videos?.length || 0} videos</span>
                         <span>⭐ {course.rating}</span>
                       </div>
-                      <button className="btn-continue" onClick={() => navigate(`/student/course/${course._id}`)}>{t('student.dashboard.buttons.continue')}</button>
+                      {course.status === 'disabled' ? (
+                        <div className="course-update-banner" style={{ marginTop: '10px', padding: '10px', borderRadius: '8px', background: '#fff7ed', color: '#9a3412', border: '1px solid #fed7aa' }}>
+                          Khóa học đang được cập nhật. Vui lòng quay lại sau.
+                        </div>
+                      ) : (
+                        <button className="btn-continue" onClick={() => navigate(`/student/course/${course._id}`)}>{t('student.dashboard.buttons.continue')}</button>
+                      )}
                     </div>
                   </div>
                 ))

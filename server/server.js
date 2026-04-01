@@ -38,6 +38,9 @@ const limiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
   max: 100, // limit each IP to 100 requests per windowMs
   skip: (req) => {
+    // In non-production (local/dev), disable rate limit to avoid 429 while testing
+    if (process.env.NODE_ENV !== 'production') return true;
+
     // Skip rate limiting for video chunk uploads as it requires many requests
     if (req.originalUrl === '/api/videos/upload-chunk') return true;
     
@@ -131,6 +134,7 @@ app.use('/api/orders', require('./routes/orders'));
 app.use('/api/users', require('./routes/users'));
 app.use('/api/chat', require('./routes/chat'));
 app.use('/api/quizzes', require('./routes/quizResult'));
+app.use('/api/certificates', require('./routes/certificates'));
 
 // Health check
 app.get('/api/health', (req, res) => {

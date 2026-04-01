@@ -8,6 +8,13 @@ function Users() {
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState('all'); // all, admin, instructor, student
   const [searchTerm, setSearchTerm] = useState('');
+  const [showModal, setShowModal] = useState(false);
+  const [formData, setFormData] = useState({
+    name: '',
+    email: '',
+    password: '',
+    avatar: ''
+  });
 
   useEffect(() => {
     fetchUsers();
@@ -27,6 +34,24 @@ function Users() {
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleCreate = async (e) => {
+    e.preventDefault();
+    try {
+      await userService.create(formData);
+      alert('Tạo giảng viên thành công!');
+      setShowModal(false);
+      setFormData({ name: '', email: '', password: '', avatar: '' });
+      fetchUsers();
+    } catch (error) {
+      console.error('Error creating instructor:', error);
+      alert(error.response?.data?.error || 'Không thể tạo giảng viên');
+    }
+  };
+
+  const handleInputChange = (e) => {
+    setFormData({ ...formData, [e.target.name]: e.target.value });
   };
 
   const handleDeleteUser = async (id) => {
@@ -71,6 +96,9 @@ function Users() {
       <div className="users-page">
         <div className="page-header">
           <h1>👥 Quản lý người dùng</h1>
+          <button className="btn-primary" onClick={() => setShowModal(true)}>
+            ➕ Thêm giảng viên
+          </button>
         </div>
 
         {/* Filters and Search */}
@@ -130,15 +158,16 @@ function Users() {
                     <span>📅 {new Date(user.createdAt).toLocaleDateString('vi-VN')}</span>
                   </div>
                 </div>
-                <div className="user-actions">
-                  <button className="btn-edit">✏️</button>
-                  <button 
-                    className="btn-delete" 
-                    onClick={() => handleDeleteUser(user._id)}
-                  >
-                    🗑️
-                  </button>
-                </div>
+                {user.role !== 'admin' && (
+                  <div className="user-actions">
+                    <button 
+                      className="btn-delete" 
+                      onClick={() => handleDeleteUser(user._id)}
+                    >
+                      🗑️
+                    </button>
+                  </div>
+                )}
               </div>
             );
           })}
@@ -147,6 +176,40 @@ function Users() {
         {filteredUsers.length === 0 && (
           <div className="empty-state">
             <p>Không tìm thấy người dùng nào</p>
+          </div>
+        )}
+
+        {showModal && (
+          <div className="modal-overlay" onClick={() => setShowModal(false)}>
+            <div className="modal" onClick={(e) => e.stopPropagation()} style={{ maxWidth: '420px' }}>
+              <div className="modal-header">
+                <h3>Thêm giảng viên</h3>
+                <button className="close-btn" onClick={() => setShowModal(false)}>✕</button>
+              </div>
+              <form onSubmit={handleCreate} className="modal-body">
+                <div className="form-group">
+                  <label>Họ tên *</label>
+                  <input name="name" value={formData.name} onChange={handleInputChange} required />
+                </div>
+                <div className="form-group">
+                  <label>Email *</label>
+                  <input type="email" name="email" value={formData.email} onChange={handleInputChange} required />
+                </div>
+                <div className="form-group">
+                  <label>Mật khẩu *</label>
+                  <input type="password" name="password" value={formData.password} onChange={handleInputChange} required />
+                </div>
+                <div className="form-group">
+                  <label>Avatar (URL)</label>
+                  <input name="avatar" value={formData.avatar} onChange={handleInputChange} placeholder="https://..." />
+                </div>
+                <p style={{ fontSize: '0.9rem', color: '#555' }}>Role mặc định: Instructor (do admin cấp).</p>
+                <div className="modal-actions">
+                  <button type="button" className="btn-secondary" onClick={() => setShowModal(false)}>Hủy</button>
+                  <button type="submit" className="btn-primary">Tạo giảng viên</button>
+                </div>
+              </form>
+            </div>
           </div>
         )}
       </div>

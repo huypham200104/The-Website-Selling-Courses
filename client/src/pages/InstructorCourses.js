@@ -31,10 +31,8 @@ function InstructorCourses() {
 
   const fetchCourses = async () => {
     try {
-      const response = await courseService.getAll();
-      const myCourses = (response.data || []).filter(
-        course => course.instructor._id === user._id
-      );
+      const response = await courseService.getMine();
+      const myCourses = response.data || [];
       setCourses(myCourses);
       setFilteredCourses(myCourses);
     } catch (error) {
@@ -114,27 +112,31 @@ function InstructorCourses() {
             <h1>📚 Quản lý khóa học</h1>
             <p>Quản lý và theo dõi các khóa học của bạn</p>
           </div>
-          <button 
-            className="btn-create"
-            onClick={() => navigate('/instructor/create-course')}
-          >
-            <span className="btn-icon">➕</span>
-            <span>Tạo khóa học mới</span>
-          </button>
+          {user?.role === 'admin' && (
+            <button 
+              className="btn-create"
+              onClick={() => navigate('/instructor/create-course')}
+            >
+              <span className="btn-icon">➕</span>
+              <span>Tạo khóa học mới</span>
+            </button>
+          )}
         </div>
 
         {courses.length === 0 ? (
           <div className="empty-state">
             <div className="empty-icon">📚</div>
             <h2>Chưa có khóa học nào</h2>
-            <p>Bắt đầu chia sẻ kiến thức của bạn bằng cách tạo khóa học đầu tiên!</p>
-            <button 
-              className="btn-create-big"
-              onClick={() => navigate('/instructor/create-course')}
-            >
-              <span className="btn-icon">➕</span>
-              <span>Tạo khóa học đầu tiên</span>
-            </button>
+            <p>{user?.role === 'admin' ? 'Tạo khóa học mới để bắt đầu.' : 'Liên hệ admin để được gán khóa học.'}</p>
+            {user?.role === 'admin' && (
+              <button 
+                className="btn-create-big"
+                onClick={() => navigate('/instructor/create-course')}
+              >
+                <span className="btn-icon">➕</span>
+                <span>Tạo khóa học đầu tiên</span>
+              </button>
+            )}
           </div>
         ) : (
           <>

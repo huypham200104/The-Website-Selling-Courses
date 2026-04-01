@@ -25,6 +25,14 @@ const userSchema = new mongoose.Schema({
     enum: ['student', 'instructor', 'admin'],
     default: 'student'
   },
+  messengerLink: {
+    type: String,
+    default: ''
+  },
+  facebookUrl: {
+    type: String,
+    default: ''
+  },
   purchasedCourses: [{
     type: mongoose.Schema.Types.ObjectId,
     ref: 'Course'

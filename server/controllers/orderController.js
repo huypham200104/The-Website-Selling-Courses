@@ -17,26 +17,34 @@ exports.createOrder = async (req, res, next) => {
       });
     }
 
+    // Do not allow ordering disabled courses
+    if (course.status === 'disabled') {
+      return res.status(400).json({ success: false, error: 'Khóa học đang được cập nhật, vui lòng thử lại sau' });
+    }
+
     // Check if already purchased
     const user = await User.findById(req.user._id);
-    if (user.purchasedCourses.includes(courseId)) {
-      return res.status(400).json({
-        success: false,
-        error: 'Course already purchased'
+    const purchasedIds = (user.purchasedCourses || []).map(id => id.toString());
+    if (purchasedIds.includes(courseId.toString())) {
+      return res.status(200).json({
+        success: true,
+        alreadyPurchased: true,
+        message: 'Course already purchased'
       });
     }
 
-    // Check if there is already a pending order for this exact course
-    let order = await Order.findOne({ userId: req.user._id, courseId, status: 'pending' });
+    // Check if there is already an in-progress order for this exact course
+    let order = await Order.findOne({ userId: req.user._id, courseId, status: { $in: ['pending', 'initiated'] } });
     
     // If no existing pending order, create one
     if (!order) {
+      const amount = Number(course.price) || 0;
       order = await Order.create({
         userId: req.user._id,
         courseId,
-        amount: course.price,
+        amount,
         paymentMethod,
-        status: 'pending'
+        status: 'initiated'
       });
     }
 
@@ -45,7 +53,11 @@ exports.createOrder = async (req, res, next) => {
       data: order
     });
   } catch (error) {
-    next(error);
+    console.error('❌ createOrder error:', error);
+    if (error.name === 'ValidationError') {
+      return res.status(400).json({ success: false, error: 'Validation Error', details: error.errors, message: error.message });
+    }
+    return res.status(400).json({ success: false, error: error.message || 'Cannot create order' });
   }
 };
 
@@ -122,6 +134,45 @@ exports.getOrder = async (req, res, next) => {
     res.json({
       success: true,
       data: order
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// @desc    Get purchase summary for current user
+// @route   GET /api/orders/summary
+// @access  Private
+exports.getPurchaseSummary = async (req, res, next) => {
+  try {
+    const userId = req.user._id;
+
+    const [user, completedOrders] = await Promise.all([
+      User.findById(userId)
+        .select('purchasedCourses')
+        .populate('purchasedCourses', 'title price thumbnail'),
+      Order.find({ userId, status: 'completed' })
+        .select('amount courseId status paymentMethod createdAt')
+        .populate('courseId', 'title price thumbnail')
+        .sort({ createdAt: -1 })
+    ]);
+
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        error: 'User not found'
+      });
+    }
+
+    const totalSpent = completedOrders.reduce((sum, order) => sum + (order.amount || 0), 0);
+
+    res.json({
+      success: true,
+      data: {
+        totalSpent,
+        orders: completedOrders,
+        courses: user.purchasedCourses || []
+      }
     });
   } catch (error) {
     next(error);
@@ -210,7 +261,8 @@ exports.uploadPaymentProof = async (req, res, next) => {
     console.log('Receipt URL:', receiptUrl);
     
     order.paymentProof = receiptUrl;
-    // status can remain pending for admin to review
+    // Move to pending once proof is uploaded
+    order.status = 'pending';
     await order.save();
 
     console.log('Order saved successfully');
@@ -224,3 +276,63 @@ exports.uploadPaymentProof = async (req, res, next) => {
   }
 };
 
+// @desc    Create order AND upload proof atomically (student confirms payment)
+// @route   POST /api/orders/submit
+// @access  Private (Student)
+exports.createOrderWithProof = async (req, res, next) => {
+  try {
+    const { courseId, paymentMethod } = req.body;
+
+    if (!courseId) {
+      return res.status(400).json({ success: false, error: 'courseId là bắt buộc' });
+    }
+
+    if (!req.file) {
+      return res.status(400).json({ success: false, error: 'Vui lòng tải lên ảnh minh chứng chuyển khoản' });
+    }
+
+    const course = await Course.findById(courseId);
+    if (!course) {
+      return res.status(404).json({ success: false, error: 'Không tìm thấy khóa học' });
+    }
+
+    if (course.status === 'disabled') {
+      return res.status(400).json({ success: false, error: 'Khóa học đang được cập nhật, vui lòng thử lại sau' });
+    }
+
+    // Check if already purchased
+    const user = await User.findById(req.user._id);
+    const purchasedIds = (user.purchasedCourses || []).map(id => id.toString());
+    if (purchasedIds.includes(courseId.toString())) {
+      return res.status(200).json({ success: true, alreadyPurchased: true, message: 'Bạn đã sở hữu khóa học này' });
+    }
+
+    // Check if there is already a pending order (re-use it)
+    let order = await Order.findOne({ userId: req.user._id, courseId, status: { $in: ['pending', 'initiated'] } });
+
+    if (!order) {
+      const amount = Number(course.price) || 0;
+      order = await Order.create({
+        userId: req.user._id,
+        courseId,
+        amount,
+        paymentMethod: paymentMethod || 'chuyển khoản',
+        status: 'initiated',
+      });
+    }
+
+    // Attach proof and move to pending (awaiting admin approval)
+    const receiptUrl = `/uploads/receipts/${req.file.filename}`;
+    order.paymentProof = receiptUrl;
+    order.status = 'pending';
+    await order.save();
+
+    res.status(201).json({ success: true, data: order });
+  } catch (error) {
+    console.error('❌ createOrderWithProof error:', error);
+    if (error.name === 'ValidationError') {
+      return res.status(400).json({ success: false, error: 'Validation Error', details: error.errors, message: error.message });
+    }
+    return res.status(400).json({ success: false, error: error.message || 'Không thể tạo đơn hàng' });
+  }
+};

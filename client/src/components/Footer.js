@@ -29,8 +29,8 @@ function Footer() {
           <h4>Liên Hệ</h4>
           <ul>
             <li>📍 Địa chỉ: 123 Đường Học Tập, Quận 1, TP. HCM</li>
-            <li>📞 Số điện thoại: 1900 1234 56</li>
-            <li>✉️ Email: thaidz@courseplatform.com</li>
+            <li>📞 Số điện thoại: 032855932</li>
+            <li>✉️ Email: ngochuy200104@gmail.com</li>
           </ul>
         </div>
       </div>

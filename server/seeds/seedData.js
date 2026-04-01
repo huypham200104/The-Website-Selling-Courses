@@ -26,6 +26,22 @@ const seedData = {
       purchasedCourses: []
     },
     {
+      name: 'Phạm Minh Khoa',
+      email: 'instructor2@example.com',
+      password: 'instructor123',
+      role: 'instructor',
+      avatar: 'https://i.pravatar.cc/150?img=5',
+      purchasedCourses: []
+    },
+    {
+      name: 'Võ Lan Chi',
+      email: 'instructor3@example.com',
+      password: 'instructor123',
+      role: 'instructor',
+      avatar: 'https://i.pravatar.cc/150?img=6',
+      purchasedCourses: []
+    },
+    {
       name: 'Trần Thị B',
       email: 'student1@example.com',
       password: 'student123',
@@ -40,6 +56,22 @@ const seedData = {
       role: 'student',
       avatar: 'https://i.pravatar.cc/150?img=4',
       purchasedCourses: []
+    },
+    {
+      name: 'Đặng Hoài Nam',
+      email: 'student3@example.com',
+      password: 'student123',
+      role: 'student',
+      avatar: 'https://i.pravatar.cc/150?img=7',
+      purchasedCourses: []
+    },
+    {
+      name: 'Ngô Thảo Vy',
+      email: 'student4@example.com',
+      password: 'student123',
+      role: 'student',
+      avatar: 'https://i.pravatar.cc/150?img=8',
+      purchasedCourses: []
     }
   ],
 
@@ -51,8 +83,9 @@ const seedData = {
       thumbnail: 'https://images.unsplash.com/photo-1633356122544-f134324a6cee?w=400',
       category: 'Web Development',
       level: 'intermediate',
-      videos: [], // Sẽ được populate sau
-      students: [] // Sẽ được populate sau
+      videos: [],
+      students: [],
+      status: 'published'
     },
     {
       title: 'Node.js & Express - Xây dựng RESTful API',
@@ -62,7 +95,8 @@ const seedData = {
       category: 'Backend Development',
       level: 'intermediate',
       videos: [],
-      students: []
+      students: [],
+      status: 'published'
     },
     {
       title: 'JavaScript cơ bản cho người mới',
@@ -72,7 +106,8 @@ const seedData = {
       category: 'Programming Basics',
       level: 'beginner',
       videos: [],
-      students: []
+      students: [],
+      status: 'published'
     },
     {
       title: 'Full Stack MERN - Dự án thực tế',
@@ -82,7 +117,8 @@ const seedData = {
       category: 'Full Stack',
       level: 'advanced',
       videos: [],
-      students: []
+      students: [],
+      status: 'published'
     },
     {
       title: 'MongoDB từ cơ bản đến nâng cao',
@@ -92,66 +128,55 @@ const seedData = {
       category: 'Database',
       level: 'intermediate',
       videos: [],
-      students: []
+      students: [],
+      status: 'published'
+    },
+    {
+      title: 'Tailwind CSS thực chiến',
+      description: 'Xây dựng giao diện hiện đại, responsive với Tailwind CSS và các pattern thực tế.',
+      price: 349000,
+      thumbnail: 'https://images.unsplash.com/photo-1498050108023-c5249f4df085?w=400',
+      category: 'Frontend',
+      level: 'beginner',
+      videos: [],
+      students: [],
+      status: 'published'
+    },
+    {
+      title: 'Design System cho lập trình viên',
+      description: 'Thiết kế, cấu trúc và tái sử dụng thành phần UI ở quy mô lớn.',
+      price: 399000,
+      thumbnail: 'https://images.unsplash.com/photo-1555066931-4365d14bab8c?w=400',
+      category: 'Design',
+      level: 'intermediate',
+      videos: [],
+      students: [],
+      status: 'published'
+    },
+    {
+      title: 'Docker & DevOps căn bản',
+      description: 'Container hóa ứng dụng, viết Dockerfile chuẩn và triển khai CI/CD đơn giản.',
+      price: 459000,
+      thumbnail: 'https://images.unsplash.com/photo-1503023345310-bd7c1de61c7d?w=400',
+      category: 'DevOps',
+      level: 'intermediate',
+      videos: [],
+      students: [],
+      status: 'published'
+    },
+    {
+      title: 'Data Analysis với Python',
+      description: 'Xử lý dữ liệu với Pandas, trực quan hóa với Matplotlib/Seaborn, làm sạch và chuẩn bị dữ liệu.',
+      price: 529000,
+      thumbnail: 'https://images.unsplash.com/photo-1555949963-aa79dcee981c?w=400',
+      category: 'Data',
+      level: 'intermediate',
+      videos: [],
+      students: [],
+      status: 'published'
     }
   ],
-
-  videos: [
-    // React course videos
-    {
-      title: 'Giới thiệu về React',
-      description: 'Tổng quan về React và môi trường phát triển',
-      duration: 900, // 15 phút
-      order: 1,
-      thumbnail: 'https://images.unsplash.com/photo-1633356122544-f134324a6cee?w=300'
-    },
-    {
-      title: 'Components và Props',
-      description: 'Học cách tạo và sử dụng components trong React',
-      duration: 1200,
-      order: 2,
-      thumbnail: 'https://images.unsplash.com/photo-1633356122544-f134324a6cee?w=300'
-    },
-    {
-      title: 'State và Lifecycle',
-      description: 'Quản lý state và lifecycle methods',
-      duration: 1500,
-      order: 3,
-      thumbnail: 'https://images.unsplash.com/photo-1633356122544-f134324a6cee?w=300'
-    },
-
-    // Node.js course videos
-    {
-      title: 'Cài đặt Node.js và NPM',
-      description: 'Hướng dẫn cài đặt môi trường Node.js',
-      duration: 600,
-      order: 1,
-      thumbnail: 'https://images.unsplash.com/photo-1627398242454-45a1465c2479?w=300'
-    },
-    {
-      title: 'Express.js cơ bản',
-      description: 'Tạo server đầu tiên với Express',
-      duration: 1800,
-      order: 2,
-      thumbnail: 'https://images.unsplash.com/photo-1627398242454-45a1465c2479?w=300'
-    },
-
-    // JavaScript course videos
-    {
-      title: 'JavaScript là gì?',
-      description: 'Giới thiệu về JavaScript và cú pháp cơ bản',
-      duration: 800,
-      order: 1,
-      thumbnail: 'https://images.unsplash.com/photo-1579468118864-1b9ea3c0db4a?w=300'
-    },
-    {
-      title: 'Biến và kiểu dữ liệu',
-      description: 'Các kiểu dữ liệu trong JavaScript',
-      duration: 1000,
-      order: 2,
-      thumbnail: 'https://images.unsplash.com/photo-1579468118864-1b9ea3c0db4a?w=300'
-    }
-  ]
+  videos: []
 };
 
 module.exports = seedData;

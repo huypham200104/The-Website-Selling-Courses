@@ -1,4 +1,5 @@
 const Course = require('../models/Course');
+const CourseReport = require('../models/CourseReport');
 const User = require('../models/User');
 
 const calculateAverageRating = (reviews = []) => {
@@ -32,7 +33,13 @@ exports.getCourses = async (req, res, next) => {
       // Let's assume if it's the public endpoint, we only show 'published'.
     }
 
-    const courses = await Course.find(query)
+    const courses = await Course.find({
+      ...query,
+      $or: [
+        { videos: { $exists: true, $not: { $size: 0 } } },
+        { quizzes: { $exists: true, $not: { $size: 0 } } },
+      ],
+    })
       .select('-reviews')
       .populate('instructor', 'name avatar')
       .populate('videos', 'title duration')
@@ -44,6 +51,24 @@ exports.getCourses = async (req, res, next) => {
       count: courses.length,
       data: courses
     });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// @desc    Get instructor's own courses (include drafts/empty content)
+// @route   GET /api/courses/instructor/mine
+// @access  Private (Instructor)
+exports.getInstructorCourses = async (req, res, next) => {
+  try {
+    const courses = await Course.find({ instructor: req.user._id })
+      .select('-reviews')
+      .populate('instructor', 'name avatar')
+      .populate('videos', 'title duration')
+      .populate('students', '_id')
+      .sort({ createdAt: -1 });
+
+    res.json({ success: true, count: courses.length, data: courses });
   } catch (error) {
     next(error);
   }
@@ -75,12 +100,34 @@ exports.getCourse = async (req, res, next) => {
   }
 };
 
-// @desc    Create new course
+// @desc    Create new course (Admin assigns instructor)
 // @route   POST /api/courses
-// @access  Private (Instructor/Admin)
+// @access  Private (Admin)
 exports.createCourse = async (req, res, next) => {
   try {
-    const { title, description, price, category, level } = req.body;
+    const { title, description, price, category, level, instructorId, thumbnail } = req.body;
+
+    if (req.user.role !== 'admin') {
+      return res.status(403).json({
+        success: false,
+        error: 'Only admin can create courses'
+      });
+    }
+
+    if (!instructorId) {
+      return res.status(400).json({
+        success: false,
+        error: 'instructorId is required'
+      });
+    }
+
+    const instructor = await User.findById(instructorId);
+    if (!instructor || instructor.role !== 'instructor') {
+      return res.status(400).json({
+        success: false,
+        error: 'instructorId must belong to an instructor'
+      });
+    }
 
     const course = await Course.create({
       title,
@@ -88,7 +135,8 @@ exports.createCourse = async (req, res, next) => {
       price,
       category,
       level,
-      instructor: req.user._id
+      thumbnail,
+      instructor: instructorId
     });
 
     res.status(201).json({
@@ -122,7 +170,24 @@ exports.updateCourse = async (req, res, next) => {
       });
     }
 
-    course = await Course.findByIdAndUpdate(req.params.id, req.body, {
+    // Prevent instructor from reassigning instructor field
+    const updatePayload = { ...req.body };
+    if (req.user.role === 'instructor' && updatePayload.instructor) {
+      delete updatePayload.instructor;
+    }
+
+    // Only admin can change instructor field
+    if (updatePayload.instructor && req.user.role === 'admin') {
+      const newInstructor = await User.findById(updatePayload.instructor);
+      if (!newInstructor || newInstructor.role !== 'instructor') {
+        return res.status(400).json({
+          success: false,
+          error: 'instructor must be a valid instructor account'
+        });
+      }
+    }
+
+    course = await Course.findByIdAndUpdate(req.params.id, updatePayload, {
       new: true,
       runValidators: true
     });
@@ -191,6 +256,16 @@ exports.enrollCourse = async (req, res, next) => {
       });
     }
 
+    // Only allow enroll if course has content (at least 1 video or 1 quiz)
+    const hasVideos = Array.isArray(course.videos) && course.videos.length > 0;
+    const hasQuizzes = Array.isArray(course.quizzes) && course.quizzes.length > 0;
+    if (!hasVideos && !hasQuizzes) {
+      return res.status(400).json({
+        success: false,
+        error: 'Khoá học chưa có nội dung (video hoặc bài tập), chưa thể đăng ký'
+      });
+    }
+
     // Add student to course
     course.students.push(req.user._id);
     await course.save();
@@ -224,6 +299,11 @@ exports.updateCourseStatus = async (req, res, next) => {
       });
     }
 
+    const allowedStatuses = ['pending', 'published', 'rejected', 'disabled'];
+    if (!allowedStatuses.includes(status)) {
+      return res.status(400).json({ success: false, error: 'Trạng thái không hợp lệ' });
+    }
+
     if (course.status === 'published' && status === 'rejected') {
       return res.status(400).json({
         success: false,
@@ -248,14 +328,23 @@ exports.updateCourseStatus = async (req, res, next) => {
 // @access  Private (Admin)
 exports.getAdminCourses = async (req, res, next) => {
   try {
+    const rawName = (req.query.instructorName || '').toString().trim();
+    const nameRegex = rawName ? new RegExp(rawName, 'i') : null;
+
     const courses = await Course.find()
-      .populate('instructor', 'name email avatar')
+      .populate({
+        path: 'instructor',
+        select: 'name email avatar',
+        match: nameRegex ? { name: nameRegex } : undefined,
+      })
       .sort({ createdAt: -1 });
+
+    const filtered = nameRegex ? courses.filter((c) => c.instructor) : courses;
 
     res.json({
       success: true,
-      count: courses.length,
-      data: courses
+      count: filtered.length,
+      data: filtered
     });
   } catch (error) {
     next(error);
@@ -290,6 +379,71 @@ exports.getCourseStudents = async (req, res, next) => {
       count: course.students.length,
       data: course.students
     });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// @desc    Report a course (student -> instructor/admin visibility)
+// @route   POST /api/courses/:id/report
+// @access  Private (Student)
+exports.reportCourse = async (req, res, next) => {
+  try {
+    const course = await Course.findById(req.params.id).populate('instructor', 'name email role');
+
+    if (!course) {
+      return res.status(404).json({ success: false, error: 'Course not found' });
+    }
+
+    // Require student to be enrolled before reporting
+    const isEnrolled = course.students.some((sid) => String(sid) === String(req.user._id));
+    if (!isEnrolled) {
+      return res.status(403).json({ success: false, error: 'Bạn cần tham gia khóa học này trước khi báo cáo' });
+    }
+
+    const { reason, message, contactPhone } = req.body;
+    const trimmedReason = typeof reason === 'string' ? reason.trim() : '';
+    const trimmedMessage = typeof message === 'string' ? message.trim() : '';
+    const trimmedPhone = typeof contactPhone === 'string' ? contactPhone.trim() : '';
+
+    if (!trimmedReason && !trimmedMessage) {
+      return res.status(400).json({ success: false, error: 'Vui lòng nhập nội dung báo cáo' });
+    }
+
+    const report = await CourseReport.create({
+      course: course._id,
+      student: req.user._id,
+      instructor: course.instructor?._id,
+      reason: trimmedReason || 'Không rõ lý do',
+      message: trimmedMessage,
+      contactPhone: trimmedPhone,
+      status: 'open',
+    });
+
+    res.status(201).json({ success: true, data: report });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// @desc    Get course reports (admin sees all, instructor sees own courses)
+// @route   GET /api/courses/reports
+// @access  Private (Admin/Instructor)
+exports.getCourseReports = async (req, res, next) => {
+  try {
+    const filter = {};
+
+    if (req.user.role === 'instructor') {
+      filter.instructor = req.user._id;
+    }
+
+    const reports = await CourseReport.find(filter)
+      .populate('course', 'title')
+      .populate('student', 'name email avatar')
+      .populate('instructor', 'name email')
+      .sort({ createdAt: -1 });
+
+    res.json({ success: true, count: reports.length, data: reports });
   } catch (error) {
     next(error);
   }
@@ -470,6 +624,83 @@ exports.deleteCourseReview = async (req, res, next) => {
         reviewCount: course.reviewCount,
       },
     });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// @desc    Get first video of a course for preview (no enrollment needed)
+// @route   GET /api/courses/:id/preview-video
+// @access  Private (Student - any authenticated user)
+exports.getCoursePreviewVideo = async (req, res, next) => {
+  try {
+    const Video = require('../models/Video');
+    const course = await Course.findById(req.params.id).select('videos title status');
+
+    if (!course) {
+      return res.status(404).json({ success: false, error: 'Course not found' });
+    }
+
+    if (!course.videos || course.videos.length === 0) {
+      return res.status(404).json({ success: false, error: 'Khóa học chưa có video' });
+    }
+
+    // Get first video by order
+    const firstVideo = await Video.findOne({ courseId: course._id }).sort({ order: 1, createdAt: 1 }).select('_id title duration order');
+
+    if (!firstVideo) {
+      return res.status(404).json({ success: false, error: 'Không tìm thấy video' });
+    }
+
+    res.json({ success: true, data: firstVideo });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// @desc    Reply to a course review (instructor or admin)
+// @route   PATCH /api/courses/:courseId/reviews/:reviewId/reply
+// @access  Private (Instructor/Admin)
+exports.replyCourseReview = async (req, res, next) => {
+  try {
+    const { courseId, reviewId } = req.params;
+    const { text } = req.body;
+
+    const trimmed = (text || '').toString().trim();
+    if (!trimmed) {
+      return res.status(400).json({ success: false, error: 'Nội dung phản hồi không được để trống' });
+    }
+    if (trimmed.length > 1000) {
+      return res.status(400).json({ success: false, error: 'Phản hồi tối đa 1000 ký tự' });
+    }
+
+    const course = await Course.findById(courseId)
+      .select('reviews instructor')
+      .populate('reviews.student', 'name avatar email role')
+      .populate('instructor', 'name email');
+
+    if (!course) {
+      return res.status(404).json({ success: false, error: 'Course not found' });
+    }
+
+    if (req.user.role === 'instructor' && course.instructor?._id?.toString() !== req.user._id.toString()) {
+      return res.status(403).json({ success: false, error: 'Bạn không thể phản hồi khóa học này' });
+    }
+
+    const review = course.reviews.find((r) => r._id.toString() === reviewId);
+    if (!review) {
+      return res.status(404).json({ success: false, error: 'Review not found' });
+    }
+
+    review.reply = {
+      text: trimmed,
+      repliedBy: req.user._id,
+      repliedAt: new Date()
+    };
+
+    await course.save();
+
+    res.json({ success: true, data: { reply: review.reply } });
   } catch (error) {
     next(error);
   }

@@ -1,10 +1,10 @@
 const mongoose = require('mongoose');
 const bcrypt = require('bcryptjs');
-require('dotenv').config();
+const path = require('path');
+require('dotenv').config({ path: path.resolve(__dirname, '../../.env') });
 
 const User = require('../models/User');
 const Course = require('../models/Course');
-const Video = require('../models/Video');
 const Order = require('../models/Order');
 const seedData = require('./seedData');
 
@@ -27,7 +27,6 @@ const importData = async () => {
     console.log('🗑️  Clearing old data...');
     await User.deleteMany();
     await Course.deleteMany();
-    await Video.deleteMany();
     await Order.deleteMany();
     console.log('✅ Old data cleared\n');
 
@@ -48,79 +47,75 @@ const importData = async () => {
     console.log(`✅ Created ${createdUsers.length} users`);
 
     // Lấy instructor và students
-    const instructor = createdUsers.find(u => u.role === 'instructor');
+    const instructors = createdUsers.filter(u => u.role === 'instructor');
     const students = createdUsers.filter(u => u.role === 'student');
 
     // 2. Tạo Courses
     console.log('\n📚 Creating courses...');
-    const coursesWithInstructor = seedData.courses.map(course => ({
+    const coursesWithInstructor = seedData.courses.map((course, idx) => ({
       ...course,
-      instructor: instructor._id,
-      students: [students[0]._id] // Student đầu tiên đã mua course
+      instructor: instructors[idx % instructors.length]._id,
+      students: [] // no student enrolled initially
     }));
 
     const createdCourses = await Course.insertMany(coursesWithInstructor);
     console.log(`✅ Created ${createdCourses.length} courses`);
 
-    // 3. Tạo Videos
-    console.log('\n🎬 Creating videos...');
-    const allVideos = [];
-    
-    // Phân phối videos cho các courses
-    const videosPerCourse = [
-      seedData.videos.slice(0, 3),  // React course - 3 videos
-      seedData.videos.slice(3, 5),  // Node.js course - 2 videos
-      seedData.videos.slice(5, 7),  // JavaScript course - 2 videos
-    ];
-
-    for (let i = 0; i < Math.min(3, createdCourses.length); i++) {
-      const courseVideos = videosPerCourse[i].map(video => ({
-        ...video,
-        courseId: createdCourses[i]._id,
-        videoUrl: `/uploads/videos/sample-video-${i + 1}.mp4`, // Placeholder
-        size: 10485760 // 10MB placeholder
-      }));
-      
-      const videos = await Video.insertMany(courseVideos);
-      allVideos.push(...videos);
-
-      // Update course với video IDs
-      await Course.findByIdAndUpdate(createdCourses[i]._id, {
-        videos: videos.map(v => v._id)
-      });
-    }
-    console.log(`✅ Created ${allVideos.length} videos`);
+    // 3. Bỏ qua tạo video - để trống cho người dùng tự thêm
 
     // 4. Tạo Orders
     console.log('\n💰 Creating orders...');
-    const orders = [
-      {
-        userId: students[0]._id,
-        courseId: createdCourses[0]._id,
-        amount: createdCourses[0].price,
-        status: 'completed',
-        paymentMethod: 'Google Pay',
-        transactionId: 'TXN001' + Date.now()
-      },
-      {
-        userId: students[0]._id,
-        courseId: createdCourses[1]._id,
-        amount: createdCourses[1].price,
-        status: 'pending',
-        paymentMethod: 'Credit Card',
-        transactionId: 'TXN002' + Date.now()
-      }
-    ];
+    const now = Date.now();
+    const orders = [];
+    if (students.length >= 2 && createdCourses.length >= 2) {
+      orders.push(
+        {
+          userId: students[0]._id,
+          courseId: createdCourses[0]._id,
+          amount: createdCourses[0].price,
+          status: 'completed',
+          paymentMethod: 'Chuyển khoản',
+          transactionId: 'TXN-REA-' + now
+        },
+        {
+          userId: students[1]._id,
+          courseId: createdCourses[1]._id,
+          amount: createdCourses[1].price,
+          status: 'completed',
+          paymentMethod: 'Momo',
+          transactionId: 'TXN-NODE-' + now
+        }
+      );
+    }
 
     const createdOrders = await Order.insertMany(orders);
     console.log(`✅ Created ${createdOrders.length} orders`);
 
-    // 5. Update User purchased courses
-    console.log('\n🔄 Updating user purchased courses...');
-    await User.findByIdAndUpdate(students[0]._id, {
-      purchasedCourses: [createdCourses[0]._id]
-    });
-    console.log('✅ Updated user data');
+    // Apply enrollments and purchasedCourses for completed orders
+    for (const ord of createdOrders) {
+      if (ord.status === 'completed') {
+        await Course.findByIdAndUpdate(ord.courseId, { $addToSet: { students: ord.userId } });
+        await User.findByIdAndUpdate(ord.userId, { $addToSet: { purchasedCourses: ord.courseId } });
+      }
+    }
+
+    // 5. Seed reviews for those enrollments
+    console.log('\n💬 Creating reviews...');
+    if (students.length >= 2 && createdCourses.length >= 2) {
+      const reviewData = [
+        { courseId: createdCourses[0]._id, studentId: students[0]._id, rating: 5, comment: 'Khóa React rất chi tiết, ví dụ thực tế.' },
+        { courseId: createdCourses[1]._id, studentId: students[1]._id, rating: 4, comment: 'API rõ ràng, dễ hiểu, nên có thêm phần testing.' }
+      ];
+
+      for (const r of reviewData) {
+        const course = await Course.findById(r.courseId);
+        course.reviews.push({ student: r.studentId, rating: r.rating, comment: r.comment });
+        course.reviewCount = course.reviews.length;
+        course.rating = course.reviews.reduce((s, rv) => s + rv.rating, 0) / course.reviews.length;
+        await course.save();
+      }
+    }
+    console.log('✅ Reviews seeded');
 
     // In thông tin đăng nhập
     console.log('\n' + '='.repeat(60));
@@ -146,7 +141,6 @@ const importData = async () => {
     console.log(`📊 STATISTICS:`);
     console.log(`   Users: ${createdUsers.length}`);
     console.log(`   Courses: ${createdCourses.length}`);
-    console.log(`   Videos: ${allVideos.length}`);
     console.log(`   Orders: ${createdOrders.length}`);
     console.log('='.repeat(60) + '\n');
 
@@ -164,7 +158,6 @@ const deleteData = async () => {
     
     await User.deleteMany();
     await Course.deleteMany();
-    await Video.deleteMany();
     await Order.deleteMany();
     
     console.log('✅ All data deleted successfully\n');

@@ -9,6 +9,7 @@ import StudentDashboard from './pages/StudentDashboard';
 import Courses from './pages/Courses';
 import Orders from './pages/Orders';
 import Users from './pages/Users';
+import AdminReports from './pages/AdminReports';
 import InstructorCourses from './pages/InstructorCourses';
 import CreateCourse from './pages/CreateCourse';
 import EditCourse from './pages/EditCourse';
@@ -70,6 +71,15 @@ function AppRoutes() {
         }
       />
 
+      <Route
+        path="/reports"
+        element={
+          <PrivateRoute allowedRoles={['admin']}>
+            <AdminReports />
+          </PrivateRoute>
+        }
+      />
+
       {/* Instructor Routes */}
       <Route
         path="/instructor/courses"
@@ -82,7 +92,7 @@ function AppRoutes() {
       <Route
         path="/instructor/create-course"
         element={
-          <PrivateRoute allowedRoles={['instructor']}>
+          <PrivateRoute allowedRoles={['admin']}>
             <CreateCourse />
           </PrivateRoute>
         }
@@ -162,7 +172,15 @@ function AppRoutes() {
         }
       />
 
-      {/* Chat Routes - Instructor & Student */}
+      {/* Chat Routes - Admin, Instructor & Student */}
+      <Route
+        path="/chat"
+        element={
+          <PrivateRoute allowedRoles={['admin']}>
+            <ChatPage />
+          </PrivateRoute>
+        }
+      />
       <Route
         path="/instructor/chat"
         element={

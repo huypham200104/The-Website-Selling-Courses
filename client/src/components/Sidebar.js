@@ -26,11 +26,13 @@ function Sidebar() {
     { path: '/courses', icon: '📚', label: 'Quản lý khóa học' },
     { path: '/users', icon: '👥', label: 'Quản lý người dùng' },
     { path: '/orders', icon: '💰', label: 'Đơn hàng' },
+    { path: '/reports', icon: '🚩', label: 'Báo cáo khóa học' },
+    { path: '/chat', icon: '💬', label: 'Tin nhắn' },
   ];
 
   const instructorLinks = [
     { path: '/instructor/courses', icon: '📚', label: 'Khóa học của tôi' },
-    { path: '/instructor/create-course', icon: '➕', label: 'Tạo khóa học' },
+    // Create-course hidden for instructors; admin handles creation
     { path: '/instructor/students', icon: '👨‍🎓', label: 'Học viên' },
     { path: '/instructor/chat', icon: '💬', label: 'Tin nhắn' },
     { path: '/instructor/profile', icon: '⚙️', label: 'Thông tin cá nhân' },

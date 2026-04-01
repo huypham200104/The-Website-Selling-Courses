@@ -2,6 +2,63 @@ const jwt = require('jsonwebtoken');
 const bcrypt = require('bcryptjs');
 const User = require('../models/User');
 
+// @desc    Register new student
+// @route   POST /api/auth/register
+// @access  Public (student-only role)
+exports.register = async (req, res, next) => {
+  try {
+    const { name, email, password, avatar, messengerLink = '', facebookUrl = '' } = req.body;
+
+    if (!name || !email || !password) {
+      return res.status(400).json({ success: false, message: 'Vui lòng nhập đầy đủ tên, email và mật khẩu' });
+    }
+
+    const existing = await User.findOne({ email });
+    if (existing) {
+      return res.status(400).json({ success: false, message: 'Email đã được sử dụng' });
+    }
+
+    const salt = await bcrypt.genSalt(10);
+    const hashedPassword = await bcrypt.hash(password, salt);
+
+    const user = await User.create({
+      name,
+      email,
+      password: hashedPassword,
+      avatar,
+      role: 'student',
+      messengerLink,
+      facebookUrl
+    });
+
+    const token = jwt.sign(
+      { id: user._id },
+      process.env.JWT_SECRET,
+      { expiresIn: process.env.JWT_EXPIRE || '7d' }
+    );
+
+    user.password = undefined;
+
+    res.status(201).json({
+      success: true,
+      message: 'Đăng ký thành công',
+      token,
+      user: {
+        _id: user._id,
+        name: user.name,
+        email: user.email,
+        role: user.role,
+        avatar: user.avatar,
+        messengerLink: user.messengerLink,
+        facebookUrl: user.facebookUrl
+      }
+    });
+  } catch (error) {
+    console.error('❌ Register error:', error);
+    next(error);
+  }
+};
+
 // @desc    Login with email and password
 // @route   POST /api/auth/login
 // @access  Public
@@ -71,7 +128,9 @@ exports.login = async (req, res, next) => {
         name: user.name,
         email: user.email,
         role: user.role,
-        avatar: user.avatar
+        avatar: user.avatar,
+        messengerLink: user.messengerLink,
+        facebookUrl: user.facebookUrl
       }
     });
   } catch (error) {
@@ -109,7 +168,7 @@ exports.logout = (req, res) => {
 // @access  Private
 exports.updateProfile = async (req, res, next) => {
   try {
-    const { name, email, currentPassword, newPassword, avatar } = req.body;
+    const { name, email, currentPassword, newPassword, avatar, messengerLink, facebookUrl } = req.body;
 
     console.log('📝 Update profile for user:', req.user._id);
 
@@ -125,7 +184,9 @@ exports.updateProfile = async (req, res, next) => {
 
     // Update basic fields
     if (name) user.name = name;
-    if (avatar) user.avatar = avatar;
+    if (avatar !== undefined) user.avatar = avatar;
+    if (messengerLink !== undefined) user.messengerLink = messengerLink;
+    if (facebookUrl !== undefined) user.facebookUrl = facebookUrl;
 
     // Update email (check if email already exists)
     if (email && email !== user.email) {
@@ -186,7 +247,9 @@ exports.updateProfile = async (req, res, next) => {
         name: user.name,
         email: user.email,
         role: user.role,
-        avatar: user.avatar
+        avatar: user.avatar,
+        messengerLink: user.messengerLink,
+        facebookUrl: user.facebookUrl
       }
     });
   } catch (error) {

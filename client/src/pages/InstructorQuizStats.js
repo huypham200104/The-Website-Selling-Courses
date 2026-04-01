@@ -56,6 +56,8 @@ function InstructorQuizStats() {
           passCount: pass,
           failCount: fail
         });
+      } else {
+        setStats({ totalAttempts: 0, averageScorePct: 0, passCount: 0, failCount: 0 });
       }
 
     } catch (error) {
@@ -70,6 +72,27 @@ function InstructorQuizStats() {
   const formatDate = (dateString) => {
     const options = { year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' };
     return new Date(dateString).toLocaleDateString('vi-VN', options);
+  };
+
+  const handleGrade = async (result) => {
+    const input = prompt(`Nhập điểm cho ${result.student?.name || 'học viên'} (1-10)`, result.score ?? '');
+    if (input === null) return;
+    const score = Number(String(input).trim());
+    if (Number.isNaN(score) || score < 1 || score > 10) {
+      alert('Điểm không hợp lệ');
+      return;
+    }
+    try {
+      const response = await quizService.gradeResult(result._id, score);
+      if (response?.success) {
+        setResults((prev) => prev.map((r) => r._id === result._id ? response.data : r));
+        // refresh stats quickly
+        fetchData();
+      }
+    } catch (error) {
+      console.error('Lỗi chấm điểm:', error);
+      alert(error?.response?.data?.message || 'Chấm điểm thất bại');
+    }
   };
 
   if (loading) return <div className="loading">Đang tải thống kê...</div>;
@@ -140,7 +163,8 @@ function InstructorQuizStats() {
                     <th>Bài kiểm tra</th>
                     <th>Điểm</th>
                     <th>Phần trăm</th>
-                    <th>Kết quả</th>
+                    <th>Trạng thái</th>
+                    <th>Bài làm</th>
                     <th>Thời gian nộp</th>
                   </tr>
                 </thead>
@@ -161,22 +185,51 @@ function InstructorQuizStats() {
                         </div>
                       </td>
                       <td className="quiz-name">{result.quizTitle}</td>
-                      <td className="score-val"><strong>{result.score}</strong> / {result.totalQuestions}</td>
+                      <td className="score-val"><strong>{result.score}</strong> / 10</td>
                       <td>
-                        <span className={`pct-badge ${result.percentage >= 50 ? 'pct-pass' : 'pct-fail'}`}>
-                          {result.percentage}%
-                        </span>
-                      </td>
-                      <td>
-                        {result.percentage >= 80 ? (
-                           <span className="status-badge status-excellent">Xuất sắc</span>
-                        ) : result.percentage >= 50 ? (
-                           <span className="status-badge status-pass">Đạt</span>
+                        {result.status === 'graded' ? (
+                          <div className="progress-bar-container">
+                            <div 
+                              className={`progress-bar-fill ${result.percentage >= 80 ? 'excellent' : result.percentage >= 50 ? 'good' : 'poor'}`} 
+                              style={{ width: `${Math.max(result.percentage, 5)}%` }}
+                            ></div>
+                            <span className="progress-text">{result.percentage}%</span>
+                          </div>
                         ) : (
-                           <span className="status-badge status-fail">Không đạt</span>
+                          <span className="progress-text" style={{ color: '#94a3b8' }}>—</span>
                         )}
                       </td>
-                      <td className="submit-time">{formatDate(result.createdAt)}</td>
+                      <td>
+                        {result.status === 'graded' ? (
+                          result.score > 5 ? (
+                            <span className="status-badge status-pass">Đạt (&gt;5/10)</span>
+                          ) : (
+                            <span className="status-badge status-fail">Chưa đạt (&le;5/10)</span>
+                          )
+                        ) : (
+                          <span className="status-badge status-pending">Chờ chấm</span>
+                        )}
+                      </td>
+                      <td className="essay-link">
+                        {result.answers && Object.keys(result.answers).length > 0 ? (
+                          Object.values(result.answers).map((val, idx) => (
+                            typeof val === 'string' ? (
+                              <div key={idx}><a href={val} target="_blank" rel="noreferrer">Link bài {idx + 1}</a></div>
+                            ) : (
+                              <div key={idx}>Câu {idx + 1}: {JSON.stringify(val)}</div>
+                            )
+                          ))
+                        ) : '—'}
+                      </td>
+                      <td className="submit-time">
+                        <div>{formatDate(result.createdAt)}</div>
+                        {result.status === 'graded' && (
+                          <div className="graded-meta">Đã chấm bởi {result.gradedBy?.name || 'Giảng viên'}{result.gradedAt ? ` (${formatDate(result.gradedAt)})` : ''}</div>
+                        )}
+                        <button className="btn-grade" onClick={() => handleGrade(result)}>
+                          {result.status === 'graded' ? 'Chấm lại' : 'Chấm điểm'}
+                        </button>
+                      </td>
                     </tr>
                   ))}
                 </tbody>

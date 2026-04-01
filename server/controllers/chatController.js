@@ -1,6 +1,7 @@
 const mongoose = require('mongoose');
 const Course = require('../models/Course');
 const Message = require('../models/Message');
+const User = require('../models/User');
 
 const { ObjectId } = mongoose.Types;
 
@@ -30,10 +31,24 @@ async function buildEligiblePartnerMap(user) {
         partnerMap.get(sid).sharedCourses.push(course.title);
       }
     }
+
+    // Allow instructors to chat with admins
+    const admins = await User.find({ role: 'admin' }).select('name email avatar role');
+    for (const admin of admins) {
+      const aid = String(admin._id);
+      partnerMap.set(aid, {
+        _id: aid,
+        name: admin.name,
+        email: admin.email,
+        avatar: admin.avatar || '',
+        role: admin.role,
+        sharedCourses: ['Admin liên hệ'],
+      });
+    }
   } else if (user.role === 'student') {
     const courses = await Course.find({ students: userId })
       .select('title instructor')
-      .populate('instructor', 'name email avatar role');
+      .populate('instructor', 'name email avatar role messengerLink facebookUrl');
 
     for (const course of courses) {
       const instructor = course.instructor;
@@ -46,10 +61,29 @@ async function buildEligiblePartnerMap(user) {
           email: instructor.email,
           avatar: instructor.avatar || '',
           role: instructor.role,
+          messengerLink: instructor.messengerLink || '',
+          facebookUrl: instructor.facebookUrl || '',
           sharedCourses: [],
         });
       }
       partnerMap.get(iid).sharedCourses.push(course.title);
+    }
+  } else if (user.role === 'admin') {
+    const instructors = await User.find({ role: 'instructor' }).select('name email avatar role messengerLink facebookUrl');
+    for (const instructor of instructors) {
+      const iid = String(instructor._id);
+      if (!partnerMap.has(iid)) {
+        partnerMap.set(iid, {
+          _id: iid,
+          name: instructor.name,
+          email: instructor.email,
+          avatar: instructor.avatar || '',
+          role: instructor.role,
+          messengerLink: instructor.messengerLink || '',
+          facebookUrl: instructor.facebookUrl || '',
+          sharedCourses: ['Admin liên hệ'],
+        });
+      }
     }
   }
 

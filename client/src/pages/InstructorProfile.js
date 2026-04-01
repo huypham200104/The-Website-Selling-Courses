@@ -14,6 +14,8 @@ function InstructorProfile() {
     name: '',
     email: '',
     avatar: '',
+    messengerLink: '',
+    facebookUrl: '',
     currentPassword: '',
     newPassword: '',
     confirmPassword: ''
@@ -25,6 +27,8 @@ function InstructorProfile() {
         name: user.name || '',
         email: user.email || '',
         avatar: user.avatar || '',
+        messengerLink: user.messengerLink || '',
+        facebookUrl: user.facebookUrl || '',
         currentPassword: '',
         newPassword: '',
         confirmPassword: ''
@@ -47,10 +51,19 @@ function InstructorProfile() {
     setMessage({ type: '', text: '' });
 
     try {
+      const normalizeLink = (value) => {
+        if (!value) return '';
+        const trimmed = value.trim();
+        if (/^https?:\/\//i.test(trimmed)) return trimmed;
+        return `https://${trimmed}`;
+      };
+
       const updateData = {
         name: formData.name,
         email: formData.email,
-        avatar: formData.avatar
+        avatar: formData.avatar,
+        messengerLink: normalizeLink(formData.messengerLink),
+        facebookUrl: normalizeLink(formData.facebookUrl)
       };
 
       const response = await authAPI.updateProfile(updateData);
@@ -221,6 +234,32 @@ function InstructorProfile() {
                     placeholder="https://example.com/avatar.jpg"
                   />
                   <small>Nhập URL hình ảnh avatar của bạn</small>
+                </div>
+
+                <div className="form-group">
+                  <label htmlFor="messengerLink">Liên kết Messenger</label>
+                  <input
+                    type="url"
+                    id="messengerLink"
+                    name="messengerLink"
+                    value={formData.messengerLink}
+                    onChange={handleChange}
+                    placeholder="https://m.me/ten-nguoi-dung"
+                  />
+                  <small>Học viên sẽ mở liên hệ này từ màn hình chat</small>
+                </div>
+
+                <div className="form-group">
+                  <label htmlFor="facebookUrl">Liên kết Facebook (dự phòng)</label>
+                  <input
+                    type="url"
+                    id="facebookUrl"
+                    name="facebookUrl"
+                    value={formData.facebookUrl}
+                    onChange={handleChange}
+                    placeholder="https://facebook.com/ten-nguoi-dung"
+                  />
+                  <small>Dùng khi không có Messenger link hoặc muốn hiển thị cả hai</small>
                 </div>
               </div>
 

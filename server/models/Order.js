@@ -13,12 +13,15 @@ const orderSchema = new mongoose.Schema({
   },
   amount: {
     type: Number,
-    required: true
+    required: true,
+    default: 0,
+    min: 0
   },
   status: {
     type: String,
-    enum: ['pending', 'completed', 'failed'],
-    default: 'pending'
+    enum: ['initiated', 'pending', 'completed', 'failed'],
+    // Start as initiated; moves to pending once proof is uploaded
+    default: 'initiated'
   },
   paymentMethod: String,
   transactionId: String,

@@ -283,7 +283,11 @@ function ChatPage() {
                       )}
                     </div>
                     <div className="chat-partner-role">
-                      {partner.role === 'instructor' ? '👨‍🏫 Giảng viên' : '👨‍🎓 Học viên'}
+                      {partner.role === 'instructor'
+                        ? '👨‍🏫 Giảng viên'
+                        : partner.role === 'admin'
+                        ? '👨‍💼 Admin'
+                        : '👨‍🎓 Học viên'}
                     </div>
                     {partner.lastMessage ? (
                       <div className="chat-last-message">{partner.lastMessage}</div>
@@ -321,11 +325,35 @@ function ChatPage() {
                   />
                   <div>
                     <h2>{selectedPartner.name}</h2>
-                    <p>{selectedPartner.role === 'instructor' ? '👨‍🏫 Giảng viên' : '👨‍🎓 Học viên'}</p>
+                    <p>
+                      {selectedPartner.role === 'instructor'
+                        ? '👨‍🏫 Giảng viên'
+                        : selectedPartner.role === 'admin'
+                        ? '👨‍💼 Admin'
+                        : '👨‍🎓 Học viên'}
+                    </p>
                   </div>
                 </div>
-                <div className="chat-shared-courses">
-                  📚 {(selectedPartner.sharedCourses || []).slice(0, 2).join(' • ')}
+                <div className="chat-box-header-actions">
+                  <div className="chat-shared-courses">
+                    📚 {(selectedPartner.sharedCourses || []).slice(0, 2).join(' • ')}
+                  </div>
+                  {selectedPartner.role === 'instructor' && (
+                    <button
+                      type="button"
+                      className="chat-messenger-btn"
+                      disabled={!(selectedPartner.messengerLink || selectedPartner.facebookUrl)}
+                      onClick={() => {
+                        const pick = selectedPartner.messengerLink || selectedPartner.facebookUrl;
+                        if (!pick) return;
+                        const hasProtocol = /^https?:\/\//i.test(pick);
+                        const href = hasProtocol ? pick : `https://${pick}`;
+                        window.open(href, '_blank', 'noopener');
+                      }}
+                    >
+                      📨 Liên hệ Messenger
+                    </button>
+                  )}
                 </div>
               </div>
 
@@ -404,7 +432,7 @@ function ChatPage() {
     </div>
   );
 
-  if (user?.role === 'instructor') {
+  if (user?.role === 'instructor' || user?.role === 'admin') {
     return <Layout>{content}</Layout>;
   }
 
