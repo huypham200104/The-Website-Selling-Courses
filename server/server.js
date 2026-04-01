@@ -18,6 +18,21 @@ const connectDB = require('./config/db');
 const session = require("express-session");
 const app = express();
 
+// Request logging middleware
+app.use((req, res, next) => {
+  const start = Date.now();
+  res.on('finish', () => {
+    const duration = Date.now() - start;
+    const logMessage = `[${req.method}] ${req.originalUrl} - status: ${res.statusCode} - ${duration}ms - IP: ${req.ip}`;
+    if (res.statusCode >= 400) {
+      console.error(`💥 ERROR: ${logMessage}`);
+    } else {
+      console.log(`✅ SUCCESS: ${logMessage}`);
+    }
+  });
+  next();
+});
+
 // Rate limiting
 const limiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
@@ -28,6 +43,9 @@ const limiter = rateLimit({
     
     // Skip rate limit for video streaming
     if (req.path.includes('/videos/') && req.path.includes('/stream')) return true;
+    
+    // Skip rate limit for authentication to avoid 429 when logging in with token
+    if (req.originalUrl.startsWith('/api/auth')) return true;
     
     return false;
   }
@@ -41,7 +59,24 @@ const streamLimiter = rateLimit({
 
 // Middleware
 app.use(helmet({
-  crossOriginResourcePolicy: { policy: "cross-origin" }
+  crossOriginResourcePolicy: { policy: "cross-origin" },
+  contentSecurityPolicy: {
+    directives: {
+      "default-src": ["'self'"],
+      "base-uri": ["'self'"],
+      "font-src": ["'self'", "https:", "data:"],
+      "form-action": ["'self'"],
+      "frame-ancestors": ["'self'"],
+      "img-src": ["'self'", "data:", "https:"],
+      "object-src": ["'none'"],
+      "script-src": ["'self'", "https:", "'unsafe-inline'"],
+      "script-src-attr": ["'none'"],
+      "style-src": ["'self'", "https:", "'unsafe-inline'"],
+      // Tắt upgrade-insecure-requests trên localhost để tránh lỗi chrome-error
+      "upgrade-insecure-requests": process.env.NODE_ENV === "production" ? [] : null,
+    },
+  },
+  crossOriginOpenerPolicy: { policy: "unsafe-none" } // Cho phép popup/redirect của Google OAuth
 }));
 app.use(cors({
   origin: process.env.CLIENT_URL,
@@ -52,6 +87,13 @@ app.use(cors({
 // Increased limits for large video chunks (up to 100MB per chunk)
 app.use(express.json({ limit: '100mb' }));
 app.use(express.urlencoded({ limit: '100mb', extended: true }));
+
+// Request Logger
+app.use((req, res, next) => {
+  console.log(`[${new Date().toISOString()}] ${req.method} ${req.originalUrl} - IP: ${req.ip}`);
+  next();
+});
+
 app.use(limiter);
 
 app.use(
@@ -97,6 +139,13 @@ app.get('/api/health', (req, res) => {
     message: 'Server is running',
     timestamp: new Date().toISOString()
   });
+});
+
+// Error Logger
+app.use((err, req, res, next) => {
+  console.error(`[${new Date().toISOString()}] ERROR - ${req.method} ${req.originalUrl} - IP: ${req.ip}`);
+  console.error(`Message: ${err.message}`);
+  next(err);
 });
 
 // Error handler (must be last)

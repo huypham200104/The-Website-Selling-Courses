@@ -1,4 +1,4 @@
-import React, { createContext, useState, useEffect, useContext, useRef } from 'react';
+import React, { createContext, useState, useEffect, useContext, useRef, useCallback } from 'react';
 import { authAPI } from '../services/api';
 
 const AuthContext = createContext();
@@ -18,7 +18,7 @@ export const AuthProvider = ({ children }) => {
   // Flag to prevent checkAuth from overwriting state set by loginWithToken
   const isLoggingInRef = useRef(false);
 
-  const checkAuth = async () => {
+  const checkAuth = useCallback(async () => {
     const token = localStorage.getItem('token');
     if (token) {
       try {
@@ -32,13 +32,15 @@ export const AuthProvider = ({ children }) => {
       } catch (error) {
         if (isLoggingInRef.current) return;
         console.error('Auth check failed:', error);
-        logout();
+        localStorage.removeItem('token');
+        setUser(null);
+        setIsAuthenticated(false);
       }
     }
     if (!isLoggingInRef.current) {
       setLoading(false);
     }
-  };
+  }, []);
 
   useEffect(() => {
     checkAuth();
@@ -68,11 +70,10 @@ export const AuthProvider = ({ children }) => {
     setIsAuthenticated(false);
   };
 
-  const loginWithToken = async (token) => {
+  const loginWithToken = useCallback(async (token) => {
     if (!token) return null;
     isLoggingInRef.current = true;
     try {
-      setLoading(true);
       localStorage.setItem('token', token);
       const response = await authAPI.getMe();
       // Handle both cases where response might be the data itself or have a data property
@@ -91,7 +92,7 @@ export const AuthProvider = ({ children }) => {
       isLoggingInRef.current = false;
       setLoading(false);
     }
-  };
+  }, []);
 
   const value = {
     user,
