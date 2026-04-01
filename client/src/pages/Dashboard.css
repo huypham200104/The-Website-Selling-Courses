@@ -146,6 +146,200 @@ tbody tr:hover {
   background: #f8f9fa;
 }
 
+.reviews-management {
+  margin-top: 30px;
+  background: white;
+  padding: 24px;
+  border-radius: 12px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+}
+
+.reviews-management-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 16px;
+}
+
+.reviews-management-header h2 {
+  margin: 0;
+  font-size: 22px;
+}
+
+.reviews-management-header p {
+  margin: 6px 0 0;
+  color: #6b7280;
+}
+
+.reviews-refresh {
+  border: none;
+  background: #eef2ff;
+  color: #4338ca;
+  padding: 10px 20px;
+  border-radius: 999px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.2s ease;
+}
+
+.reviews-refresh:hover:not(:disabled) {
+  background: #e0e7ff;
+}
+
+.reviews-refresh:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.reviews-controls {
+  margin-top: 20px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 20px;
+  align-items: flex-end;
+}
+
+.reviews-controls label {
+  display: flex;
+  flex-direction: column;
+  font-weight: 600;
+  color: #1f2937;
+  font-size: 14px;
+  gap: 6px;
+}
+
+.reviews-controls select {
+  min-width: 240px;
+  border: 1px solid #d1d5db;
+  border-radius: 8px;
+  padding: 10px 12px;
+  font-size: 14px;
+}
+
+.reviews-metrics-card {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  padding: 14px 20px;
+  border-radius: 12px;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+}
+
+.reviews-metrics-card > div {
+  display: flex;
+  flex-direction: column;
+  line-height: 1.2;
+}
+
+.reviews-metrics-value {
+  font-size: 32px;
+  font-weight: 700;
+  color: #111827;
+}
+
+.reviews-metrics-count {
+  font-size: 24px;
+  font-weight: 600;
+  color: #0f172a;
+}
+
+.reviews-metrics-label {
+  font-size: 12px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #6b7280;
+}
+
+.admin-review-stars {
+  font-size: 18px;
+  letter-spacing: 2px;
+}
+
+.admin-review-stars .filled {
+  color: #f59e0b;
+}
+
+.admin-review-stars .empty {
+  color: #e5e7eb;
+}
+
+.reviews-table {
+  margin-top: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.admin-review-card {
+  border: 1px solid #e5e7eb;
+  border-radius: 12px;
+  padding: 18px;
+  background: #fff;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.05);
+}
+
+.admin-review-header {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.review-owner {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 600;
+}
+
+.review-owner-email {
+  color: #6b7280;
+  font-size: 13px;
+}
+
+.admin-review-rating {
+  text-align: right;
+}
+
+.admin-review-rating strong {
+  display: block;
+  font-size: 22px;
+}
+
+.admin-review-comment {
+  margin: 12px 0;
+  color: #1f2937;
+  line-height: 1.6;
+}
+
+.admin-review-footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  color: #94a3b8;
+  font-size: 13px;
+}
+
+.review-delete-btn {
+  border: none;
+  background: #fee2e2;
+  color: #b91c1c;
+  padding: 8px 14px;
+  border-radius: 8px;
+  cursor: pointer;
+  font-weight: 600;
+}
+
+.review-delete-btn:hover:not(:disabled) {
+  background: #fecaca;
+}
+
+.review-delete-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
 /* Status Badge */
 .status {
   display: inline-block;
@@ -214,6 +408,30 @@ tbody tr:hover {
 
   th, td {
     padding: 8px;
+  }
+
+  .reviews-management-header {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .reviews-controls {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .reviews-controls select {
+    width: 100%;
+  }
+
+  .reviews-metrics-card {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .admin-review-footer {
+    flex-direction: column;
+    align-items: flex-start;
   }
 }
 

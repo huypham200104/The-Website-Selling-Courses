@@ -1,0 +1,56 @@
+{
+  "title": "Database Design Basics",
+  "description": "Covers normalization, keys, indexing, and relational modeling concepts.",
+  "questions": [
+    {
+      "question": "What is the main goal of normalization?",
+      "options": ["Increase redundancy", "Decrease redundancy and anomalies", "Speed up backups", "Encrypt data"],
+      "correctAnswer": 1
+    },
+    {
+      "question": "Which normal form removes partial dependency on a composite key?",
+      "options": ["1NF", "2NF", "3NF", "BCNF"],
+      "correctAnswer": 1
+    },
+    {
+      "question": "A primary key must be...",
+      "options": ["Nullable", "Unique and not null", "Auto-incrementing", "Clustered"],
+      "correctAnswer": 1
+    },
+    {
+      "question": "Which index type speeds up searches on multiple columns?",
+      "options": ["Bitmap index", "Hash index", "Composite index", "Full-text index"],
+      "correctAnswer": 2
+    },
+    {
+      "question": "Referential integrity is enforced through...",
+      "options": ["Check constraints", "Foreign keys", "Views", "Stored procedures"],
+      "correctAnswer": 1
+    },
+    {
+      "question": "What does denormalization typically trade for performance?",
+      "options": ["More joins", "Less redundancy", "Data consistency", "Storage capacity"],
+      "correctAnswer": 2
+    },
+    {
+      "question": "Which schema is common in data warehouses?",
+      "options": ["Star schema", "Snowflake grammar", "Bubble schema", "Ring schema"],
+      "correctAnswer": 0
+    },
+    {
+      "question": "What is a surrogate key?",
+      "options": ["A key derived from business meaning", "A system-generated unique identifier", "A composite key", "A foreign key"],
+      "correctAnswer": 1
+    },
+    {
+      "question": "When should you consider sharding?",
+      "options": ["When tables are tiny", "When vertical scaling is sufficient", "When dataset size or traffic exceeds a single node", "Never for relational databases"],
+      "correctAnswer": 2
+    },
+    {
+      "question": "Which statement about indexes is true?",
+      "options": ["They always speed up writes", "They can slow down insert/update operations", "They reduce storage usage", "They replace the need for primary keys"],
+      "correctAnswer": 1
+    }
+  ]
+}

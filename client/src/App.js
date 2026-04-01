@@ -1,6 +1,7 @@
 import React from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider, useAuth } from './context/AuthContext';
+import { LanguageProvider } from './context/LanguageContext';
 import Login from './pages/Login';
 import AuthSuccess from './pages/AuthSuccess';
 import Dashboard from './pages/Dashboard';
@@ -19,7 +20,9 @@ import CourseLearn from './pages/CourseLearn';
 import Checkout from './pages/Checkout';
 import StudentQuizResults from './pages/StudentQuizResults';
 import PrivateRoute from './components/PrivateRoute';
+import ChatPage from './pages/ChatPage';
 import './App.css';
+
 
 function AppRoutes() {
   const { user, loading } = useAuth();
@@ -159,7 +162,26 @@ function AppRoutes() {
         }
       />
 
+      {/* Chat Routes - Instructor & Student */}
+      <Route
+        path="/instructor/chat"
+        element={
+          <PrivateRoute allowedRoles={['instructor']}>
+            <ChatPage />
+          </PrivateRoute>
+        }
+      />
+      <Route
+        path="/student/chat"
+        element={
+          <PrivateRoute allowedRoles={['student']}>
+            <ChatPage />
+          </PrivateRoute>
+        }
+      />
+
       {/* Default Route */}
+
       <Route
         path="/"
         element={
@@ -184,11 +206,13 @@ function AppRoutes() {
 
 function App() {
   return (
-    <AuthProvider>
-      <Router>
-        <AppRoutes />
-      </Router>
-    </AuthProvider>
+    <LanguageProvider>
+      <AuthProvider>
+        <Router>
+          <AppRoutes />
+        </Router>
+      </AuthProvider>
+    </LanguageProvider>
   );
 }
 

@@ -1,183 +1,200 @@
-const { GoogleGenAI } = require('@google/genai');
+const mongoose = require('mongoose');
 const Course = require('../models/Course');
+const Message = require('../models/Message');
 
-const FALLBACK_MESSAGE = 'Mình chưa tìm thấy thông tin này trong dữ liệu hiện có.';
+const { ObjectId } = mongoose.Types;
 
-const ai = process.env.GEMINI_API_KEY
-  ? new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY })
-  : null;
+async function buildEligiblePartnerMap(user) {
+  const partnerMap = new Map();
+  const userId = String(user._id);
 
-const escapeRegex = (value = '') => value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  if (user.role === 'instructor') {
+    const courses = await Course.find({ instructor: userId })
+      .select('title students')
+      .populate('students', 'name email avatar role');
 
-const getKeywords = (message = '') => {
-  return message
-    .toLowerCase()
-    .replace(/[^\p{L}\p{N}\s]/gu, ' ')
-    .split(/\s+/)
-    .filter((token) => token.length >= 3)
-    .slice(0, 8);
-};
+    for (const course of courses) {
+      for (const student of course.students || []) {
+        if (!student || student.role !== 'student') continue;
+        const sid = String(student._id);
+        if (!partnerMap.has(sid)) {
+          partnerMap.set(sid, {
+            _id: sid,
+            name: student.name,
+            email: student.email,
+            avatar: student.avatar || '',
+            role: student.role,
+            sharedCourses: [],
+          });
+        }
+        partnerMap.get(sid).sharedCourses.push(course.title);
+      }
+    }
+  } else if (user.role === 'student') {
+    const courses = await Course.find({ students: userId })
+      .select('title instructor')
+      .populate('instructor', 'name email avatar role');
 
-const buildCourseContext = (course) => {
-  const videos = (course.videos || [])
-    .slice(0, 8)
-    .map((video, index) => `${index + 1}. ${video.title}${video.duration ? ` (${video.duration}s)` : ''}`)
-    .join(' | ');
-
-  return [
-    `ID: ${course._id.toString()}`,
-    `Title: ${course.title || 'N/A'}`,
-    `Description: ${course.description || 'N/A'}`,
-    `Category: ${course.category || 'N/A'}`,
-    `Level: ${course.level || 'N/A'}`,
-    `Price: ${course.price ?? 'N/A'}`,
-    `Instructor: ${course.instructor?.name || 'N/A'}`,
-    `Total Lessons: ${(course.videos || []).length}`,
-    `Lessons: ${videos || 'N/A'}`,
-    `Rating: ${course.rating ?? 'N/A'}`,
-  ].join('\n');
-};
-
-const fetchRelevantCourses = async (message, userId, courseId) => {
-  const keywords = getKeywords(message);
-  const regexes = keywords.map((keyword) => new RegExp(escapeRegex(keyword), 'i'));
-
-  const filters = [];
-
-  if (regexes.length) {
-    filters.push({ title: { $in: regexes } });
-    filters.push({ description: { $in: regexes } });
-    filters.push({ category: { $in: regexes } });
+    for (const course of courses) {
+      const instructor = course.instructor;
+      if (!instructor || instructor.role !== 'instructor') continue;
+      const iid = String(instructor._id);
+      if (!partnerMap.has(iid)) {
+        partnerMap.set(iid, {
+          _id: iid,
+          name: instructor.name,
+          email: instructor.email,
+          avatar: instructor.avatar || '',
+          role: instructor.role,
+          sharedCourses: [],
+        });
+      }
+      partnerMap.get(iid).sharedCourses.push(course.title);
+    }
   }
 
-  if (courseId) {
-    filters.push({ _id: courseId });
+  return partnerMap;
+}
+
+async function ensurePartnerAllowed(user, partnerId) {
+  if (!ObjectId.isValid(partnerId)) {
+    return { ok: false, status: 400, message: 'Invalid partner id' };
   }
 
-  const matchFilter = filters.length ? { $or: filters } : {};
-
-  const matched = await Course.find(matchFilter)
-    .populate('instructor', 'name')
-    .populate('videos', 'title duration order')
-    .sort({ rating: -1, createdAt: -1 })
-    .limit(8)
-    .lean();
-
-  if (matched.length >= 3) {
-    return matched;
+  const partnerMap = await buildEligiblePartnerMap(user);
+  if (!partnerMap.has(String(partnerId))) {
+    return {
+      ok: false,
+      status: 403,
+      message: 'You are not allowed to chat with this user',
+    };
   }
 
-  const enrolled = await Course.find({ students: userId })
-    .populate('instructor', 'name')
-    .populate('videos', 'title duration order')
-    .sort({ createdAt: -1 })
-    .limit(5)
-    .lean();
+  return { ok: true, partner: partnerMap.get(String(partnerId)) };
+}
 
-  const map = new Map();
-  [...matched, ...enrolled].forEach((course) => {
-    map.set(course._id.toString(), course);
-  });
-
-  return Array.from(map.values()).slice(0, 8);
-};
-
-exports.chatWithDbAssistant = async (req, res, next) => {
+exports.getPartners = async (req, res, next) => {
   try {
-    if (!ai) {
-      return res.status(500).json({
-        success: false,
-        error: 'Gemini API key is not configured'
+    const user = req.user;
+    const userId = String(user._id);
+    const partnerMap = await buildEligiblePartnerMap(user);
+
+    if (partnerMap.size === 0) {
+      return res.json({ success: true, data: [] });
+    }
+
+    const userObjectId = new ObjectId(userId);
+    const lastByPartner = await Message.aggregate([
+      {
+        $match: {
+          $or: [
+            { sender: userObjectId },
+            { recipient: userObjectId },
+          ],
+        },
+      },
+      {
+        $project: {
+          text: 1,
+          createdAt: 1,
+          partnerId: {
+            $cond: [
+              { $eq: ['$sender', userObjectId] },
+              '$recipient',
+              '$sender',
+            ],
+          },
+        },
+      },
+      { $sort: { createdAt: -1 } },
+      {
+        $group: {
+          _id: '$partnerId',
+          lastMessage: { $first: '$text' },
+          lastMessageAt: { $first: '$createdAt' },
+        },
+      },
+    ]);
+
+    const messageMap = new Map();
+    for (const row of lastByPartner) {
+      messageMap.set(String(row._id), {
+        lastMessage: row.lastMessage,
+        lastMessageAt: row.lastMessageAt,
       });
     }
 
-    const { message, history = [], courseId } = req.body;
-
-    if (!message || typeof message !== 'string') {
-      return res.status(400).json({
-        success: false,
-        error: 'Message is required'
-      });
-    }
-
-    const courses = await fetchRelevantCourses(message, req.user._id, courseId);
-
-    if (!courses.length) {
-      return res.json({
-        success: true,
-        data: {
-          reply: FALLBACK_MESSAGE,
-          sources: []
-        }
-      });
-    }
-
-    const contextText = courses.map(buildCourseContext).join('\n\n---\n\n');
-
-    const recentHistory = Array.isArray(history)
-      ? history
-          .slice(-6)
-          .map((item) => `${item.role === 'assistant' ? 'Assistant' : 'User'}: ${String(item.text || '')}`)
-          .join('\n')
-      : '';
-
-    const prompt = `You are a course assistant for students.\n`
-      + `Only answer from the provided DATABASE CONTEXT.\n`
-      + `If the context does not contain the answer, reply exactly with: ${FALLBACK_MESSAGE}\n`
-      + `Do not add external knowledge.\n`
-      + `Answer in Vietnamese, short and clear.\n\n`
-      + `DATABASE CONTEXT:\n${contextText}\n\n`
-      + `${recentHistory ? `CHAT HISTORY:\n${recentHistory}\n\n` : ''}`
-      + `USER QUESTION:\n${message}`;
-
-    const modelResponse = await ai.models.generateContent({
-      model: 'gemini-2.5-flash',
-      contents: [{ role: 'user', parts: [{ text: prompt }] }],
-      config: {
-        temperature: 0.2,
-      }
+    const partners = Array.from(partnerMap.values()).map((p) => {
+      const last = messageMap.get(p._id);
+      return {
+        ...p,
+        sharedCourses: Array.from(new Set(p.sharedCourses)),
+        lastMessage: last?.lastMessage || '',
+        lastMessageAt: last?.lastMessageAt || null,
+      };
     });
 
-    const reply = (modelResponse?.text || '').trim() || FALLBACK_MESSAGE;
-
-    return res.json({
-      success: true,
-      data: {
-        reply,
-        sources: courses.map((course) => ({
-          id: course._id,
-          title: course.title
-        }))
-      }
+    partners.sort((a, b) => {
+      const ta = a.lastMessageAt ? new Date(a.lastMessageAt).getTime() : 0;
+      const tb = b.lastMessageAt ? new Date(b.lastMessageAt).getTime() : 0;
+      if (tb !== ta) return tb - ta;
+      return a.name.localeCompare(b.name);
     });
+
+    res.json({ success: true, data: partners });
   } catch (error) {
-    console.error('Chat API Error:', error);
+    next(error);
+  }
+};
 
-    // Xử lý lỗi API Key hết hạn hoặc không hợp lệ
-    if (error?.status === 400 && (error?.message?.includes('expired') || error?.message?.includes('API_KEY_INVALID'))) {
-      return res.json({
-        success: true,
-        data: {
-          reply: 'API Key của hệ thống đã hết hạn hoặc không hợp lệ. Vui lòng liên hệ quản trị viên cập nhật lại API Key mới.',
-          sources: []
-        }
-      });
+exports.getMessages = async (req, res, next) => {
+  try {
+    const partnerId = req.params.partnerId;
+    const auth = await ensurePartnerAllowed(req.user, partnerId);
+    if (!auth.ok) {
+      return res.status(auth.status).json({ success: false, error: auth.message });
     }
 
-    // Provide a graceful fallback or error message specifically for Gemini quota/rate limits
-    if (error?.status === 429 || error?.message?.includes('429') || error?.message?.includes('quota')) {
-      return res.json({
-        success: true,
-        data: {
-          reply: 'Hệ thống chatbot đang quá tải hoặc hết lượt sử dụng theo giới hạn của API Key. Vui lòng thử lại sau hoặc nâng cấp tài khoản Gemini.',
-          sources: []
-        }
-      });
+    const userId = String(req.user._id);
+    const limit = Math.min(parseInt(req.query.limit, 10) || 200, 500);
+
+    const messages = await Message.find({
+      $or: [
+        { sender: userId, recipient: partnerId },
+        { sender: partnerId, recipient: userId },
+      ],
+    })
+      .sort({ createdAt: 1 })
+      .limit(limit)
+      .lean();
+
+    res.json({ success: true, data: messages });
+  } catch (error) {
+    next(error);
+  }
+};
+
+exports.sendMessage = async (req, res, next) => {
+  try {
+    const partnerId = req.params.partnerId;
+    const auth = await ensurePartnerAllowed(req.user, partnerId);
+    if (!auth.ok) {
+      return res.status(auth.status).json({ success: false, error: auth.message });
     }
 
-    return res.status(500).json({
-      success: false,
-      error: 'Lỗi máy chủ khi lấy dữ liệu chat.'
+    const text = typeof req.body.text === 'string' ? req.body.text.trim() : '';
+    if (!text) {
+      return res.status(400).json({ success: false, error: 'Message text is required' });
+    }
+
+    const message = await Message.create({
+      sender: req.user._id,
+      recipient: partnerId,
+      text,
     });
+
+    res.status(201).json({ success: true, data: message });
+  } catch (error) {
+    next(error);
   }
 };

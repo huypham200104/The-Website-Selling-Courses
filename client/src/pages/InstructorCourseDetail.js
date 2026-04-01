@@ -27,6 +27,9 @@ function InstructorCourseDetail() {
   const navigate = useNavigate();
   const [course, setCourse] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [reviews, setReviews] = useState([]);
+  const [reviewsLoading, setReviewsLoading] = useState(true);
+  const [reviewMeta, setReviewMeta] = useState({ averageRating: 0, reviewCount: 0 });
 
   // Upload state
   const [uploading, setUploading] = useState(false);
@@ -50,6 +53,7 @@ function InstructorCourseDetail() {
 
   useEffect(() => {
     fetchCourseDetails();
+    loadReviews();
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id]);
 
@@ -63,6 +67,19 @@ function InstructorCourseDetail() {
       navigate('/instructor/courses');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const loadReviews = async () => {
+    try {
+      setReviewsLoading(true);
+      const response = await courseService.getReviews(id);
+      setReviews(response.data || []);
+      setReviewMeta(response.meta || { averageRating: 0, reviewCount: 0 });
+    } catch (error) {
+      console.error('Error loading reviews:', error);
+    } finally {
+      setReviewsLoading(false);
     }
   };
 
@@ -98,6 +115,30 @@ function InstructorCourseDetail() {
     if (mins > 0) return `${mins}m ${secs}s`;
     return `${secs}s`;
   };
+
+  const formatReviewDate = (value) => {
+    if (!value) return 'Không rõ thời gian';
+    try {
+      return new Date(value).toLocaleString('vi-VN', {
+        day: '2-digit',
+        month: '2-digit',
+        year: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit'
+      });
+    } catch (error) {
+      console.error('Invalid review date:', value, error);
+      return 'Không rõ thời gian';
+    }
+  };
+
+  const renderStars = (value = 0) => (
+    <div className="instructor-review-stars" aria-hidden="true">
+      {[1, 2, 3, 4, 5].map((star) => (
+        <span key={star} className={value >= star ? 'filled' : 'empty'}>★</span>
+      ))}
+    </div>
+  );
 
   const handleUploadVideo = async (e) => {
     e.preventDefault();
@@ -556,6 +597,65 @@ function InstructorCourseDetail() {
                 </p>
               </div>
             </div>
+          </div>
+
+          <div className="reviews-section">
+            <div className="reviews-section-header">
+              <div>
+                <h2>⭐️ Đánh giá từ học viên</h2>
+                <p className="reviews-section-subtitle">
+                  Theo dõi mức độ hài lòng thực tế của học viên để cải thiện khóa học.
+                </p>
+              </div>
+              <button
+                type="button"
+                className="reviews-refresh-btn"
+                onClick={loadReviews}
+                disabled={reviewsLoading}
+              >
+                {reviewsLoading ? 'Đang tải...' : '🔄 Làm mới'}
+              </button>
+            </div>
+
+            <div className="reviews-metrics">
+              <div className="reviews-average-card">
+                <span className="reviews-average-value">{(reviewMeta?.averageRating || 0).toFixed(1)}</span>
+                <span className="reviews-average-label">Điểm trung bình</span>
+                {renderStars(Math.round(reviewMeta?.averageRating || 0))}
+              </div>
+              <div className="reviews-meta-info">
+                <p><strong>{reviewMeta?.reviewCount || 0}</strong> lượt đánh giá</p>
+                <p>{reviewsLoading ? 'Đang đồng bộ dữ liệu...' : 'Cập nhật theo thời gian thực'}</p>
+              </div>
+            </div>
+
+            {reviewsLoading ? (
+              <div className="reviews-loading">Đang tải danh sách đánh giá...</div>
+            ) : reviews?.length === 0 ? (
+              <div className="reviews-empty">Chưa có đánh giá nào cho khóa học này.</div>
+            ) : (
+              <div className="reviews-list">
+                {reviews.map((review) => (
+                  <div key={review._id} className="review-card">
+                    <div className="review-card-header">
+                      <div>
+                        <p className="review-author">{review.student?.name || 'Học viên ẩn danh'}</p>
+                        <p className="review-email">{review.student?.email || 'Không có email'}</p>
+                      </div>
+                      <div className="review-rating">
+                        <span className="review-rating-value">{review.rating?.toFixed(1)}</span>
+                        {renderStars(Math.round(review.rating || 0))}
+                      </div>
+                    </div>
+                    <p className="review-comment">{review.comment || 'Người học không để lại nhận xét.'}</p>
+                    <div className="review-card-footer">
+                      <span>{formatReviewDate(review.createdAt)}</span>
+                      <span>Mã đánh giá #{review._id?.slice(-6)}</span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
         </div>
       </div>

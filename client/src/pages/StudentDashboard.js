@@ -5,11 +5,13 @@ import { courseService, orderService, authService } from '../services/apiService
 import StudentHeader from '../components/StudentHeader';
 import StudentChatBubble from '../components/StudentChatBubble';
 import Footer from '../components/Footer';
+import { useLanguage } from '../context/LanguageContext';
 import './StudentDashboard.css';
 
 function StudentDashboard() {
   const { user, setUser, logout } = useAuth();
   const navigate = useNavigate();
+  const { t } = useLanguage();
   const [courses, setCourses] = useState([]);
   const [myCourses, setMyCourses] = useState([]);
   const [pendingCourseIds, setPendingCourseIds] = useState([]);
@@ -127,7 +129,7 @@ function StudentDashboard() {
     setProfileMessage({ text: '', type: '' });
     
     if (profileForm.newPassword && profileForm.newPassword !== profileForm.confirmPassword) {
-      setProfileMessage({ text: 'Mật khẩu mới không khớp!', type: 'error' });
+      setProfileMessage({ text: t('student.dashboard.profile.passwordMismatch'), type: 'error' });
       return;
     }
 
@@ -139,7 +141,7 @@ function StudentDashboard() {
         newPassword: profileForm.newPassword
       });
       
-      setProfileMessage({ text: response.message || 'Cập nhật thành công!', type: 'success' });
+      setProfileMessage({ text: response.message || t('student.dashboard.profile.success'), type: 'success' });
       
       // Update local context
       if (response.user) {
@@ -161,8 +163,16 @@ function StudentDashboard() {
     }
   };
 
+  const getHeadingKey = () => {
+    if (activeTab === 'profile') return 'student.dashboard.heading.profile';
+    if (activeTab === 'my-courses') return 'student.dashboard.heading.myCourses';
+    if (activeTab === 'pending') return 'student.dashboard.heading.pending';
+    if (activeTab === 'favorites') return 'student.dashboard.heading.favorites';
+    return 'student.dashboard.heading.discover';
+  };
+
   if (loading) {
-    return <div className="loading">Đang tải...</div>;
+    return <div className="loading">{t('student.dashboard.loading')}</div>;
   }
 
   return (
@@ -173,17 +183,7 @@ function StudentDashboard() {
       {/* Main Content */}
       <div className="student-content">
         <div className="content-header">
-          {activeTab === 'profile' ? (
-            <h2>Thông tin cá nhân</h2>
-          ) : activeTab === 'my-courses' ? (
-            <h2>Khóa học của tôi</h2>
-          ) : activeTab === 'pending' ? (
-            <h2>Đang chờ duyệt</h2>
-          ) : activeTab === 'favorites' ? (
-            <h2>Yêu thích</h2>
-          ) : (
-            <h2>Khám phá khóa học</h2>
-          )}
+          <h2>{t(getHeadingKey())}</h2>
         </div>
 
         {/* Courses Grid */}
@@ -202,7 +202,7 @@ function StudentDashboard() {
                       <button 
                         className={`favorite-btn ${isFavorited ? 'active' : ''}`}
                         onClick={(e) => handleToggleFavorite(course._id, e)}
-                        title={isFavorited ? "Bỏ yêu thích" : "Yêu thích"}
+                        title={isFavorited ? t('student.dashboard.favorites.remove') : t('student.dashboard.favorites.add')}
                       >
                         {isFavorited ? '❤️' : '🤍'}
                       </button>
@@ -224,7 +224,7 @@ function StudentDashboard() {
                               navigate(`/student/course/${course._id}`);
                             }}
                           >
-                            ▶️ Tiếp tục học
+                            {t('student.dashboard.buttons.continue')}
                           </button>
                         </div>
                       ) : (
@@ -232,14 +232,14 @@ function StudentDashboard() {
                           <span className="price">{formatCurrency(course.price)}</span>
                           {isPending ? (
                             <button className="btn-pending" onClick={() => navigate(`/student/checkout/${course._id}`)}>
-                              ⏳ Đang chờ duyệt
+                              {t('student.dashboard.buttons.pending')}
                             </button>
                           ) : (
                             <button 
                               className="btn-enroll"
                               onClick={() => navigate(`/student/checkout/${course._id}`)}
                             >
-                              Đăng ký ngay
+                              {t('student.dashboard.buttons.enroll')}
                             </button>
                           )}
                         </div>
@@ -255,7 +255,7 @@ function StudentDashboard() {
             <div className="courses-grid">
               {courses.filter(c => pendingCourseIds.includes(c._id)).length === 0 ? (
                 <div className="empty-state">
-                  <p>⏳ Bạn không có khóa học nào đang chờ xét duyệt</p>
+                  <p>{t('student.dashboard.empty.pending')}</p>
                 </div>
               ) : (
                 courses.filter(c => pendingCourseIds.includes(c._id)).map((course) => (
@@ -269,7 +269,7 @@ function StudentDashboard() {
                         <span>⭐ {course.rating}</span>
                       </div>
                       <button className="btn-pending" onClick={() => navigate(`/student/checkout/${course._id}`)}>
-                        Xem thông tin thanh toán
+                        {t('student.dashboard.buttons.viewPayment')}
                       </button>
                     </div>
                   </div>
@@ -282,9 +282,9 @@ function StudentDashboard() {
             <div className="courses-grid">
               {courses.filter(c => favorites.includes(c._id)).length === 0 ? (
                 <div className="empty-state">
-                  <p>❤️ Bạn chưa có khóa học yêu thích nào</p>
+                  <p>{t('student.dashboard.empty.favorites')}</p>
                   <button onClick={() => setActiveTab('all')} className="btn-browse">
-                    Khám phá khóa học
+                    {t('student.dashboard.buttons.browse')}
                   </button>
                 </div>
               ) : (
@@ -300,7 +300,7 @@ function StudentDashboard() {
                         <button 
                           className={`favorite-btn ${isFavorited ? 'active' : ''}`}
                           onClick={(e) => handleToggleFavorite(course._id, e)}
-                          title="Bỏ yêu thích"
+                          title={t('student.dashboard.favorites.remove')}
                         >
                           ❤️
                         </button>
@@ -322,7 +322,7 @@ function StudentDashboard() {
                                 navigate(`/student/course/${course._id}`);
                               }}
                             >
-                              ▶️ Tiếp tục học
+                              {t('student.dashboard.buttons.continue')}
                             </button>
                           </div>
                         ) : (
@@ -330,14 +330,14 @@ function StudentDashboard() {
                             <span className="price">{formatCurrency(course.price)}</span>
                             {isPending ? (
                               <button className="btn-pending" onClick={() => navigate(`/student/checkout/${course._id}`)}>
-                                ⏳ Đang chờ duyệt
+                                {t('student.dashboard.buttons.pending')}
                               </button>
                             ) : (
                               <button 
                                 className="btn-enroll"
                                 onClick={() => navigate(`/student/checkout/${course._id}`)}
                               >
-                                Đăng ký ngay
+                                {t('student.dashboard.buttons.enroll')}
                               </button>
                             )}
                           </div>
@@ -354,9 +354,9 @@ function StudentDashboard() {
             <div className="courses-grid">
               {myCourses.length === 0 ? (
                 <div className="empty-state">
-                  <p>📚 Bạn chưa đăng ký khóa học nào</p>
+                  <p>{t('student.dashboard.empty.myCourses')}</p>
                   <button onClick={() => setActiveTab('all')} className="btn-browse">
-                    Khám phá khóa học
+                    {t('student.dashboard.buttons.browse')}
                   </button>
                 </div>
               ) : (
@@ -370,7 +370,7 @@ function StudentDashboard() {
                         <span>🎬 {course.videos.length} videos</span>
                         <span>⭐ {course.rating}</span>
                       </div>
-                      <button className="btn-continue" onClick={() => navigate(`/student/course/${course._id}`)}>▶️ Tiếp tục học</button>
+                      <button className="btn-continue" onClick={() => navigate(`/student/course/${course._id}`)}>{t('student.dashboard.buttons.continue')}</button>
                     </div>
                   </div>
                 ))
@@ -380,7 +380,7 @@ function StudentDashboard() {
 
           {activeTab === 'profile' && (
             <div className="profile-section" style={{ maxWidth: '600px', margin: '0 auto', background: '#ffffff', padding: '2rem', borderRadius: '12px', boxShadow: '0 4px 6px rgba(0,0,0,0.1)' }}>
-              <h3 style={{ marginBottom: '1.5rem', borderBottom: '1px solid #e2e8f0', paddingBottom: '0.5rem', color: '#1e293b' }}>Cập nhật thông tin</h3>
+              <h3 style={{ marginBottom: '1.5rem', borderBottom: '1px solid #e2e8f0', paddingBottom: '0.5rem', color: '#1e293b' }}>{t('student.dashboard.profile.title')}</h3>
               {profileMessage.text && (
                 <div style={{ padding: '10px', marginBottom: '15px', borderRadius: '4px', background: profileMessage.type === 'error' ? '#fee2e2' : '#dcfce7', color: profileMessage.type === 'error' ? '#991b1b' : '#166534', border: `1px solid ${profileMessage.type === 'error' ? '#f87171' : '#86efac'}` }}>
                   {profileMessage.text}
@@ -388,7 +388,7 @@ function StudentDashboard() {
               )}
               <form onSubmit={handleProfileSubmit}>
                 <div style={{ marginBottom: '1rem' }}>
-                  <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: '500', color: '#1e293b' }}>Họ và tên</label>
+                  <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: '500', color: '#1e293b' }}>{t('student.dashboard.profile.name')}</label>
                   <input
                     type="text"
                     name="name"
@@ -400,30 +400,30 @@ function StudentDashboard() {
                 </div>
                 
                 <div style={{ marginBottom: '1rem' }}>
-                  <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: '500', color: '#1e293b' }}>Email</label>
+                  <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: '500', color: '#1e293b' }}>{t('student.dashboard.profile.email')}</label>
                   <input
                     type="email"
                     name="email"
                     value={profileForm.email}
                     readOnly
-                    title="Email không thể thay đổi"
+                    title={t('student.dashboard.profile.emailTooltip')}
                     style={{ width: '100%', padding: '0.75rem', borderRadius: '6px', border: '1px solid #cbd5e1', backgroundColor: '#f1f5f9', color: '#64748b', cursor: 'not-allowed' }}
                   />
                 </div>
 
                 <div style={{ marginTop: '2rem', marginBottom: '1.5rem', borderBottom: '1px solid #e2e8f0', paddingBottom: '0.5rem' }}>
-                  <h4 style={{ margin: 0, color: '#1e293b' }}>Đổi mật khẩu (Tuỳ chọn)</h4>
-                  <p style={{ fontSize: '0.85rem', color: '#64748b', margin: '0.25rem 0' }}>Bỏ trống nếu bạn không muốn đổi mật khẩu</p>
+                  <h4 style={{ margin: 0, color: '#1e293b' }}>{t('student.dashboard.profile.passwordSectionTitle')}</h4>
+                  <p style={{ fontSize: '0.85rem', color: '#64748b', margin: '0.25rem 0' }}>{t('student.dashboard.profile.passwordHint')}</p>
                 </div>
 
                 {!user?.password && (
                   <div style={{ marginBottom: '1rem', fontStyle: 'italic', color: '#64748b' }}>
-                    *Tài khoản đăng nhập bằng Google không thể đổi mật khẩu.
+                    {t('student.dashboard.profile.googleNote')}
                   </div>
                 )}
 
                 <div style={{ marginBottom: '1rem' }}>
-                  <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: '500', color: '#1e293b' }}>Mật khẩu hiện tại</label>
+                  <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: '500', color: '#1e293b' }}>{t('student.dashboard.profile.currentPassword')}</label>
                   <input
                     type="password"
                     name="currentPassword"
@@ -434,7 +434,7 @@ function StudentDashboard() {
                 </div>
                 
                 <div style={{ marginBottom: '1rem' }}>
-                  <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: '500', color: '#1e293b' }}>Mật khẩu mới</label>
+                  <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: '500', color: '#1e293b' }}>{t('student.dashboard.profile.newPassword')}</label>
                   <input
                     type="password"
                     name="newPassword"
@@ -445,7 +445,7 @@ function StudentDashboard() {
                 </div>
                 
                 <div style={{ marginBottom: '1.5rem' }}>
-                  <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: '500', color: '#1e293b' }}>Xác nhận mật khẩu mới</label>
+                  <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: '500', color: '#1e293b' }}>{t('student.dashboard.profile.confirmPassword')}</label>
                   <input
                     type="password"
                     name="confirmPassword"
@@ -457,7 +457,7 @@ function StudentDashboard() {
 
                 <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
                   <button type="submit" style={{ padding: '0.75rem 2rem', background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)', color: 'white', border: 'none', borderRadius: '6px', fontWeight: 'bold', cursor: 'pointer', transition: 'background 0.2s', boxShadow: '0 2px 4px rgba(0,0,0,0.1)' }}>
-                    Lưu Thay Đổi
+                    {t('student.dashboard.profile.submit')}
                   </button>
                 </div>
               </form>
