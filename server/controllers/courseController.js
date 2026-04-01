@@ -1,6 +1,17 @@
 const Course = require('../models/Course');
 const User = require('../models/User');
 
+const calculateAverageRating = (reviews = []) => {
+  if (!reviews.length) return 0;
+  const total = reviews.reduce((sum, review) => sum + review.rating, 0);
+  return Number((total / reviews.length).toFixed(2));
+};
+
+const normalizeReviews = (reviews = []) =>
+  reviews
+    .map((review) => (typeof review.toObject === 'function' ? review.toObject() : review))
+    .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+
 // @desc    Get all courses
 // @route   GET /api/courses
 // @access  Public
@@ -22,6 +33,7 @@ exports.getCourses = async (req, res, next) => {
     }
 
     const courses = await Course.find(query)
+      .select('-reviews')
       .populate('instructor', 'name avatar')
       .populate('videos', 'title duration')
       .populate('students', '_id')
@@ -43,6 +55,7 @@ exports.getCourses = async (req, res, next) => {
 exports.getCourse = async (req, res, next) => {
   try {
     const course = await Course.findById(req.params.id)
+      .select('-reviews')
       .populate('instructor', 'name avatar email')
       .populate('videos');
     
@@ -334,5 +347,130 @@ exports.deleteQuiz = async (req, res) => {
   } catch (error) {
     console.error('Error deleting quiz:', error);
     res.status(500).json({ success: false, message: 'Server error' });
+  }
+};
+
+// @desc    Get course reviews
+// @route   GET /api/courses/:id/reviews
+// @access  Private (Student/Instructor/Admin)
+exports.getCourseReviews = async (req, res, next) => {
+  try {
+    const course = await Course.findById(req.params.id)
+      .select('reviews rating reviewCount')
+      .populate('reviews.student', 'name avatar role email');
+
+    if (!course) {
+      return res.status(404).json({ success: false, error: 'Course not found' });
+    }
+
+    res.json({
+      success: true,
+      data: normalizeReviews(course.reviews),
+      meta: {
+        averageRating: course.rating,
+        reviewCount: course.reviewCount,
+      },
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// @desc    Create course review
+// @route   POST /api/courses/:id/reviews
+// @access  Private (Student)
+exports.createCourseReview = async (req, res, next) => {
+  try {
+    const { rating, comment } = req.body;
+    const parsedRating = Number(rating);
+    if (!Number.isFinite(parsedRating) || parsedRating < 1 || parsedRating > 5) {
+      return res.status(400).json({ success: false, error: 'Rating must be between 1 and 5' });
+    }
+
+    const course = await Course.findById(req.params.id)
+      .populate('reviews.student', 'name avatar role email');
+
+    if (!course) {
+      return res.status(404).json({ success: false, error: 'Course not found' });
+    }
+
+    const isEnrolled = course.students.some((studentId) => studentId.toString() === req.user._id.toString());
+    if (!isEnrolled) {
+      return res.status(403).json({ success: false, error: 'Bạn cần tham gia khóa học này trước khi đánh giá' });
+    }
+
+    const alreadyReviewed = course.reviews.some((review) => {
+      const reviewerId = review.student?._id || review.student;
+      return reviewerId.toString() === req.user._id.toString();
+    });
+    if (alreadyReviewed) {
+      return res.status(400).json({ success: false, error: 'Bạn đã đánh giá khóa học này rồi' });
+    }
+
+    course.reviews.push({
+      student: req.user._id,
+      rating: parsedRating,
+      comment: typeof comment === 'string' ? comment.trim() : '',
+    });
+
+    course.rating = calculateAverageRating(course.reviews);
+    course.reviewCount = course.reviews.length;
+    await course.save();
+    await course.populate('reviews.student', 'name avatar role email');
+
+    const newReview = course.reviews
+      .slice()
+      .reverse()
+      .find((review) => {
+        const reviewerId = review.student?._id || review.student;
+        return reviewerId.toString() === req.user._id.toString();
+      });
+
+    res.status(201).json({
+      success: true,
+      data: {
+        review: newReview,
+        averageRating: course.rating,
+        reviewCount: course.reviewCount,
+      },
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// @desc    Delete course review (admin)
+// @route   DELETE /api/courses/:courseId/reviews/:reviewId
+// @access  Private (Admin)
+exports.deleteCourseReview = async (req, res, next) => {
+  try {
+    const { courseId, reviewId } = req.params;
+    const course = await Course.findById(courseId)
+      .select('reviews rating reviewCount')
+      .populate('reviews.student', 'name avatar role email');
+
+    if (!course) {
+      return res.status(404).json({ success: false, error: 'Course not found' });
+    }
+
+    const reviewIndex = course.reviews.findIndex((review) => review._id.toString() === reviewId);
+    if (reviewIndex === -1) {
+      return res.status(404).json({ success: false, error: 'Review not found' });
+    }
+
+    course.reviews.splice(reviewIndex, 1);
+    course.rating = calculateAverageRating(course.reviews);
+    course.reviewCount = course.reviews.length;
+    await course.save();
+
+    res.json({
+      success: true,
+      data: {
+        averageRating: course.rating,
+        reviewCount: course.reviewCount,
+      },
+    });
+  } catch (error) {
+    next(error);
   }
 };

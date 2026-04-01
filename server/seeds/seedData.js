@@ -51,7 +51,6 @@ const seedData = {
       thumbnail: 'https://images.unsplash.com/photo-1633356122544-f134324a6cee?w=400',
       category: 'Web Development',
       level: 'intermediate',
-      rating: 4.8,
       videos: [], // Sẽ được populate sau
       students: [] // Sẽ được populate sau
     },
@@ -62,7 +61,6 @@ const seedData = {
       thumbnail: 'https://images.unsplash.com/photo-1627398242454-45a1465c2479?w=400',
       category: 'Backend Development',
       level: 'intermediate',
-      rating: 4.9,
       videos: [],
       students: []
     },
@@ -73,7 +71,6 @@ const seedData = {
       thumbnail: 'https://images.unsplash.com/photo-1579468118864-1b9ea3c0db4a?w=400',
       category: 'Programming Basics',
       level: 'beginner',
-      rating: 4.6,
       videos: [],
       students: []
     },
@@ -84,7 +81,6 @@ const seedData = {
       thumbnail: 'https://images.unsplash.com/photo-1517694712202-14dd9538aa97?w=400',
       category: 'Full Stack',
       level: 'advanced',
-      rating: 4.9,
       videos: [],
       students: []
     },
@@ -95,7 +91,6 @@ const seedData = {
       thumbnail: 'https://images.unsplash.com/photo-1544383835-bda2bc66a55d?w=400',
       category: 'Database',
       level: 'intermediate',
-      rating: 4.7,
       videos: [],
       students: []
     }

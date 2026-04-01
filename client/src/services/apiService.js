@@ -91,6 +91,21 @@ export const courseService = {
     const response = await api.get(`/courses/${id}/students`);
     return response.data;
   },
+
+  getReviews: async (id) => {
+    const response = await api.get(`/courses/${id}/reviews`);
+    return response.data;
+  },
+
+  addReview: async (id, payload) => {
+    const response = await api.post(`/courses/${id}/reviews`, payload);
+    return response.data;
+  },
+
+  deleteReview: async (courseId, reviewId) => {
+    const response = await api.delete(`/courses/${courseId}/reviews/${reviewId}`);
+    return response.data;
+  },
 };
 
 // User Services (Admin only)
@@ -166,6 +181,24 @@ export const statsService = {
       totalOrders: orders.count || orders.data?.length || 0,
       // Add more stats as needed
     };
+  },
+};
+
+// Chat Services
+export const chatService = {
+  getPartners: async () => {
+    const response = await api.get('/chat/partners');
+    return response.data;
+  },
+
+  getMessages: async (partnerId) => {
+    const response = await api.get(`/chat/messages/${partnerId}`);
+    return response.data;
+  },
+
+  sendMessage: async (partnerId, text) => {
+    const response = await api.post(`/chat/messages/${partnerId}`, { text });
+    return response.data;
   },
 };
 

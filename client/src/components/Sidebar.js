@@ -32,8 +32,10 @@ function Sidebar() {
     { path: '/instructor/courses', icon: '📚', label: 'Khóa học của tôi' },
     { path: '/instructor/create-course', icon: '➕', label: 'Tạo khóa học' },
     { path: '/instructor/students', icon: '👨‍🎓', label: 'Học viên' },
+    { path: '/instructor/chat', icon: '💬', label: 'Tin nhắn' },
     { path: '/instructor/profile', icon: '⚙️', label: 'Thông tin cá nhân' },
   ];
+
 
   const links = user?.role === 'admin' ? adminLinks : instructorLinks;
 

@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate, useLocation, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { courseService, orderService, authService } from '../services/apiService';
+import { useLanguage } from '../context/LanguageContext';
 import '../pages/StudentDashboard.css'; // Reusing existing header styles
 
 function StudentHeader({ customActiveTab, onTabChange }) {
@@ -9,6 +10,7 @@ function StudentHeader({ customActiveTab, onTabChange }) {
   const navigate = useNavigate();
   const location = useLocation();
   const [searchParams, setSearchParams] = useSearchParams();
+  const { language, setLanguage, t } = useLanguage();
   
   const [counts, setCounts] = useState({
     pending: 0,
@@ -97,31 +99,47 @@ function StudentHeader({ customActiveTab, onTabChange }) {
       <div className="header-content">
         <div className="header-left">
           <div className="logo" onClick={logoClick} style={{ cursor: 'pointer' }}>
-            <h1>🎓 Course Platform</h1>
+            <h1>{t('student.header.title')}</h1>
           </div>
           <nav className="header-nav">
             <button
               className={`nav-link ${activeTab === 'all' && location.pathname === '/student/dashboard' ? 'active' : ''}`}
               onClick={() => handleTabClick('all')}
             >
-              📚 Tất cả khóa học
+              {t('student.header.tabs.all')}
             </button>
             <button
               className={`nav-link ${activeTab === 'pending' && location.pathname === '/student/dashboard' ? 'active' : ''}`}
               onClick={() => handleTabClick('pending')}
             >
-              ⏳ Đang chờ duyệt ({counts.pending})
+              {t('student.header.tabs.pending', { count: counts.pending })}
             </button>
             <button
               className={`nav-link ${activeTab === 'favorites' && location.pathname === '/student/dashboard' ? 'active' : ''}`}
               onClick={() => handleTabClick('favorites')}
             >
-              ❤️ Yêu thích ({counts.favorites})
+              {t('student.header.tabs.favorites', { count: counts.favorites })}
             </button>
           </nav>
         </div>
 
         <div className="header-right">
+          <div className="language-switcher" role="group" aria-label={t('language.switcher.label')}>
+            <button
+              type="button"
+              className={`language-btn ${language === 'vi' ? 'active' : ''}`}
+              onClick={() => setLanguage('vi')}
+            >
+              {t('language.switcher.vi')}
+            </button>
+            <button
+              type="button"
+              className={`language-btn ${language === 'en' ? 'active' : ''}`}
+              onClick={() => setLanguage('en')}
+            >
+              {t('language.switcher.en')}
+            </button>
+          </div>
           <div className="profile-menu-container">
             <div className="profile-trigger">
               <img 
@@ -142,24 +160,31 @@ function StudentHeader({ customActiveTab, onTabChange }) {
                 className={`dropdown-item ${activeTab === 'my-courses' && location.pathname === '/student/dashboard' ? 'active-dropdown' : ''}`} 
                 onClick={() => handleTabClick('my-courses')}
               >
-                ⭐ Khóa học của tôi ({counts.myCourses})
+                {t('student.header.menu.myCourses', { count: counts.myCourses })}
               </button>
               <button 
                 className={`dropdown-item ${activeTab === 'profile' && location.pathname === '/student/dashboard' ? 'active-dropdown' : ''}`} 
                 onClick={() => handleTabClick('profile')}
               >
-                ⚙️ Thông tin cá nhân
+                {t('student.header.menu.profile')}
               </button>
               <button 
                 className={`dropdown-item ${location.pathname === '/student/quiz-results' ? 'active-dropdown' : ''}`} 
                 onClick={() => navigate('/student/quiz-results')}
               >
-                📊 Kết quả bài tập
+                {t('student.header.menu.quizResults')}
+              </button>
+              <button 
+                className={`dropdown-item ${location.pathname === '/student/chat' ? 'active-dropdown' : ''}`} 
+                onClick={() => navigate('/student/chat')}
+              >
+                {t('student.header.menu.chat')}
               </button>
               <div className="dropdown-divider"></div>
               <button className="dropdown-item logout" onClick={handleLogout}>
-                🚪 Đăng xuất
+                {t('student.header.menu.logout')}
               </button>
+
             </div>
           </div>
         </div>
