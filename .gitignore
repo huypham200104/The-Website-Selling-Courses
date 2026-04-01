@@ -8,10 +8,44 @@ build/
 .next/
 out/
 
-## Environment & secrets
+## ============================================
+## Environment & Secrets - NEVER PUSH THESE!
+## ============================================
+
+# All .env files in any location
 .env
 .env.*
+**/.env
+**/.env.*
+
+# Specific env files
+.env.local
+.env.development
+.env.production
+.env.staging
+.env.test
+
+# Server-specific env
+server/.env
+server/.env.*
+
+# Google & Firebase credentials
 firebase-key.json
+**/firebase-key.json
+google-credentials.json
+**/google-credentials.json
+service-account*.json
+*serviceAccountKey*.json
+
+# Other secret files
+*.pem
+*.key
+*.p12
+*.pfx
+secrets.json
+credentials.json
+config/secrets.js
+config/keys.js
 
 ## Logs
 npm-debug.log*
@@ -24,10 +58,10 @@ pnpm-debug.log*
 .DS_Store
 .vscode/
 .idea/
+Thumbs.db
 
 ## Project specific
 server/uploads/
 server/output.txt
 push_error.txt
 docs/large-video-upload.md
-

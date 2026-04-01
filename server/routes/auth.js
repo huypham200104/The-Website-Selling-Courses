@@ -24,7 +24,7 @@ router.get(
     }
     next();
   },
-  passport.authenticate('google', { scope: ['profile', 'email'] })
+  passport.authenticate('google', { scope: ['profile', 'email'], prompt: 'select_account' })
 );
 
 // @route   GET /api/auth/google/callback
@@ -42,6 +42,39 @@ router.get(
     res.redirect(`${process.env.CLIENT_URL}/auth/success?token=${token}`);
   }
 );
+
+// @route   GET /api/auth/google/mock
+// @desc    Mock Google Login for development (when GOOGLE_CLIENT_ID not set)
+router.get('/google/mock', async (req, res) => {
+  try {
+    const User = require('../models/User');
+    const CLIENT_URL = process.env.CLIENT_URL || 'http://localhost:3000';
+
+    // Find or create a mock student user
+    let mockUser = await User.findOne({ email: 'google.mock@example.com' });
+    if (!mockUser) {
+      mockUser = await User.create({
+        name: 'Google Mock User',
+        email: 'google.mock@example.com',
+        role: 'student',
+        avatar: 'https://i.pravatar.cc/150?img=10'
+      });
+      console.log('✅ Mock Google user created');
+    }
+
+    const token = jwt.sign(
+      { id: mockUser._id },
+      process.env.JWT_SECRET,
+      { expiresIn: process.env.JWT_EXPIRE || '7d' }
+    );
+
+    console.log('🔄 Mock Google Login successful for:', mockUser.email);
+    res.redirect(`${CLIENT_URL}/auth/success?token=${token}`);
+  } catch (error) {
+    console.error('❌ Mock Google Login error:', error);
+    res.status(500).json({ success: false, message: 'Mock login failed' });
+  }
+});
 
 // @route   GET /api/auth/me
 // @desc    Get current user
